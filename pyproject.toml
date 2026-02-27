@@ -1,17 +1,22 @@
 [project]
 name = "lightml"
 version = "0.1.0"
-description = "Lightweight model registry"
+description = "Lightweight model registry with experiment tracking and dynamic Excel export"
 authors = [{ name = "Pier" }]
 readme = "README.md"
 requires-python = ">=3.12"
+
 dependencies = [
-    "pydantic",
-    "fastapi"
+    "pydantic>=2.0",
+    "fastapi>=0.110",
+    "openpyxl>=3.1",
 ]
 
+[project.scripts]
+lightml = "lightml.cli:main"
+
 [build-system]
-requires = ["setuptools"]
+requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
