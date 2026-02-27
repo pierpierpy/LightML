@@ -15,8 +15,7 @@ async def create_registry(registry: RegistryInit):
 
 @router.post("/models/register", tags=["models"])
 async def register_model_route(model: ModelCreate):
-    result = register_model(model)
-
+    result = register_model(model.db, model.model_name, model.path, model.parent_name)
     if result == 1:
         return {"status": "ok", "model_name": model.model_name}
     else:

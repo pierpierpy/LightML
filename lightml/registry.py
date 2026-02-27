@@ -9,38 +9,40 @@ from pathlib import Path
 import sqlite3
 import os
 
-def register_model(model: ModelCreate) -> int:
+def register_model(db: str,
+                   model_name: str,
+                   path: str,
+                   parent_name: str | None = None) -> int:
     try:
-        db_path = Path(model.db).resolve()
-
-        with sqlite3.connect(db_path) as conn:
+        with sqlite3.connect(db) as conn:
             conn.execute("PRAGMA foreign_keys = ON;")
 
-            # insert model
-            cursor = conn.execute(
-                "INSERT INTO model (model_name, path) VALUES (?, ?)",
-                (model.model_name, str(model.path)),
+            parent_id = None
+
+            if parent_name:
+                row = conn.execute(
+                    "SELECT id FROM model WHERE model_name = ?;",
+                    (parent_name,),
+                ).fetchone()
+
+                parent_id = row[0] if row else -1  # invalid FK triggers DB error
+
+            conn.execute(
+                """
+                INSERT INTO model (model_name, path, parent_id)
+                VALUES (?, ?, ?);
+                """,
+                (model_name, str(path), parent_id),
             )
-            model_id = cursor.lastrowid
-
-            # find metric tables
-            tables = conn.execute(
-                "SELECT name FROM sqlite_master WHERE type='table' AND name LIKE 'metrics_%';"
-            ).fetchall()
-
-            # create empty metric row for each family
-            for (table_name,) in tables:
-                conn.execute(
-                    f"INSERT INTO {table_name} (model_id) VALUES (?);",
-                    (model_id,),
-                )
 
             conn.commit()
 
         return 1
-    except Exception:
-        return 0
-    
+
+    except Exception as e:
+        print("ERROR:", e)
+        raise
+
 
 def initialize_registry(registry: RegistryInit) -> Path:
     db_name = f"{registry.registry_name}.db"

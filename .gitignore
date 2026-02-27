@@ -4,3 +4,4 @@ lightml/models/__pycache__/*
 server/__pycache__/*
 
 **/__pycache__/*
+my_registry/*

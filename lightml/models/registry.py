@@ -7,13 +7,14 @@ class ModelBase(BaseModel):
     model_name: str = Field(..., min_length=1)
     path: Path
     db: str
-
+    parent_name: str | None = None
     model_config = {
         "json_schema_extra": {
             "example": {
                 "model_name": "resnet50",
                 "path": "/home/pier/models/resnet50",
-                "db": "my_registry/main.db"
+                "db": "my_registry/main.db",
+                "parent_name": "model"
             }
         }
     }

@@ -15,12 +15,16 @@ def initialize_database(registry_path: str,metrics_schema,
 
         # Fixed model table
         conn.execute("""
-            CREATE TABLE IF NOT EXISTS model (
+        CREATE TABLE IF NOT EXISTS model (
                 id INTEGER PRIMARY KEY,
                 model_name TEXT UNIQUE NOT NULL,
-                path TEXT NOT NULL
+                path TEXT NOT NULL,
+                parent_id INTEGER,
+                FOREIGN KEY(parent_id)
+                    REFERENCES model(id)
+                    ON DELETE SET NULL
             );
-        """)
+            """)
         conn.execute("""
     CREATE TABLE IF NOT EXISTS registry_schema (
         family TEXT NOT NULL,
@@ -29,19 +33,37 @@ def initialize_database(registry_path: str,metrics_schema,
     );
 """)
         conn.execute("""
-    CREATE TABLE IF NOT EXISTS metrics (
-        id INTEGER PRIMARY KEY,
-        model_id INTEGER NOT NULL,
-        family TEXT NOT NULL,
-        metric_name TEXT NOT NULL,
-        value REAL,
-        FOREIGN KEY(model_id)
-            REFERENCES model(id)
-            ON DELETE CASCADE,
-        FOREIGN KEY(family, metric_name)
-            REFERENCES registry_schema(family, metric_name)
-            ON DELETE CASCADE
-    );
+CREATE TABLE IF NOT EXISTS metrics (
+    id INTEGER PRIMARY KEY,
+    model_id INTEGER,
+    checkpoint_id INTEGER,
+    family TEXT NOT NULL,
+    metric_name TEXT NOT NULL,
+    value REAL NOT NULL,
+    FOREIGN KEY(model_id)
+        REFERENCES model(id)
+        ON DELETE CASCADE,
+    FOREIGN KEY(checkpoint_id)
+        REFERENCES checkpoint(id)
+        ON DELETE CASCADE,
+    CHECK (
+        (model_id IS NOT NULL AND checkpoint_id IS NULL)
+        OR
+        (model_id IS NULL AND checkpoint_id IS NOT NULL)
+    )
+);
+""")
+        conn.execute("""
+CREATE TABLE IF NOT EXISTS checkpoint (
+    id INTEGER PRIMARY KEY,
+    model_id INTEGER NOT NULL,
+    step INTEGER NOT NULL,
+    path TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY(model_id)
+        REFERENCES model(id)
+        ON DELETE CASCADE
+);
 """)
         for entry in metrics_schema:
             family = entry["family"]
