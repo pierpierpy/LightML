@@ -5,3 +5,5 @@ server/__pycache__/*
 
 **/__pycache__/*
 my_registry/*
+miia_registry/*
+report/*

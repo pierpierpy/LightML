@@ -1,5 +1,5 @@
-import os
 import random
+import shutil
 import sqlite3
 from pathlib import Path
 
@@ -8,113 +8,180 @@ from lightml.models.registry import RegistryInit
 from lightml.handle import LightMLHandle
 
 
-# ----------------------
-# CLEAN PREVIOUS RUN
-# ----------------------
+# -------------------------------------------------
+# CLEAN
+# -------------------------------------------------
 
-if Path("my_registry").exists():
-    import shutil
-    shutil.rmtree("my_registry")
+REGISTRY_DIR = "miia_registry"
+
+if Path(REGISTRY_DIR).exists():
+    shutil.rmtree(REGISTRY_DIR)
 
 
-# ----------------------
-# INITIALIZE REGISTRY
-# ----------------------
+# -------------------------------------------------
+# METRIC SCHEMA (MULTIPLE FAMILIES)
+# -------------------------------------------------
+
+metrics_schema = [
+    {
+        "family": "custom",
+        "metrics": {
+            "GENERIC ITA": "float",
+            "RAG ITA": "float",
+            "RAG ENG": "float",
+        },
+    },
+    {
+        "family": "eng_5shot",
+        "metrics": {
+            "MMLU-5": "float",
+            "ARC-5": "float",
+        },
+    },
+    {
+        "family": "instruction_following",
+        "metrics": {
+            "IFEval-ITA": "float",
+            "IFEval-ENG": "float",
+        },
+    },
+]
+
+
+# -------------------------------------------------
+# INIT REGISTRY
+# -------------------------------------------------
 
 registry = RegistryInit(
-    registry_path="my_registry",
-    registry_name="main",   # NO .db
-    metrics_schema=[
-        {
-            "family": "benchmarks_ita",
-            "metrics": {"Hella": "float", "MMLU": "float"},
-        }
-    ],
+    registry_path=REGISTRY_DIR,
+    registry_name="main",
+    metrics_schema=metrics_schema,
     overwrite=True,
 )
 
 db_path = initialize_registry(registry)
 
-print("DB CREATED AT:", db_path)
-print("EXISTS?", os.path.exists(db_path))
+
+# -------------------------------------------------
+# MODELS WITH LINEAGE
+# -------------------------------------------------
+
+models = [
+    {"name": "MIIA-HF"},
+    {"name": "MIIA-ECCOLO2", "parent": "MIIA-HF"},
+    {"name": "MIIA-GAD-V1", "parent": "MIIA-ECCOLO2"},
+    {"name": "MIIA-FT-FC", "parent": "MIIA-GAD-V1"},
+    {"name": "MIIA-FFT-IF-V1", "parent": "MIIA-FT-FC"},
+]
 
 
-# ----------------------
-# HANDLE
-# ----------------------
+# -------------------------------------------------
+# REGISTER EVERYTHING
+# -------------------------------------------------
 
-handle = LightMLHandle(str(db_path))
+for m in models:
 
-
-# ----------------------
-# REGISTER MODEL
-# ----------------------
-
-handle.register_model(
-    model_name="demo_model",
-    path="models/demo_model",
-)
-
-
-# ----------------------
-# SIMULATE TRAINING
-# ----------------------
-
-best_acc = 0.0
-best_ckpt_id = None
-
-for step in [1000, 2000, 3000, 4000, 5000]:
-
-    ckpt_id = handle.register_checkpoint(
-        model_name="demo_model",
-        step=step,
-        path=f"checkpoints/ckpt_{step}.pt",
+    handle = LightMLHandle(
+        db=str(db_path),
+        run_name=m["name"],
     )
 
-    acc = round(random.uniform(0.7, 0.95), 4)
+    # ------------------
+    # REGISTER MODEL
+    # ------------------
 
-    handle.log_checkpoint_metric(
-        checkpoint_id=ckpt_id,
-        family="benchmarks_ita",
-        metric_name="Hella",
-        value=acc,
+    handle.register_model(
+        model_name=m["name"],
+        path=f"/models/{m['name']}",
+        parent_name=m.get("parent"),
     )
 
-    print("STEP", step, "ACC", acc)
+    # ------------------
+    # SIMULATE CHECKPOINTS
+    # ------------------
 
-    if acc > best_acc:
-        best_acc = acc
-        best_ckpt_id = ckpt_id
+    checkpoint_ids = []
+
+    for step in [1000, 2000, 3000]:
+
+        ckpt_id = handle.register_checkpoint(
+            model_name=m["name"],
+            step=step,
+            path=f"/checkpoints/{m['name']}_step{step}.pt",
+        )
+
+        checkpoint_ids.append(ckpt_id)
+
+        # checkpoint metric (solo custom family)
+        handle.log_checkpoint_metric(
+            checkpoint_id=ckpt_id,
+            family="custom",
+            metric_name="GENERIC ITA",
+            value=round(random.uniform(40, 80), 2),
+        )
+
+    # ------------------
+    # MODEL FINAL METRICS
+    # ------------------
+
+    # custom
+    handle.log_model_metric(
+        model_name=m["name"],
+        family="custom",
+        metric_name="GENERIC ITA",
+        value=round(random.uniform(50, 85), 2),
+    )
+
+    handle.log_model_metric(
+        model_name=m["name"],
+        family="custom",
+        metric_name="RAG ITA",
+        value=round(random.uniform(50, 85), 2),
+    )
+
+    # eng_5shot
+    handle.log_model_metric(
+        model_name=m["name"],
+        family="eng_5shot",
+        metric_name="MMLU-5",
+        value=round(random.uniform(40, 75), 2),
+    )
+
+    # instruction_following
+    handle.log_model_metric(
+        model_name=m["name"],
+        family="instruction_following",
+        metric_name="IFEval-ITA",
+        value=round(random.uniform(0, 20), 2),
+    )
+
+    print("REGISTERED:", m["name"])
 
 
-# ----------------------
-# PROMOTE BEST
-# ----------------------
-
-handle.register_model(
-    model_name="demo_model_best",
-    path="checkpoints/best.pt",
-    parent_name="demo_model",
-)
-
-handle.log_model_metric(
-    model_name="demo_model_best",
-    family="benchmarks_ita",
-    metric_name="Hella",
-    value=best_acc,
-)
-
-
-# ----------------------
-# VERIFY DB
-# ----------------------
+# -------------------------------------------------
+# VERIFY DATABASE
+# -------------------------------------------------
 
 with sqlite3.connect(db_path) as conn:
+
+    print("\nRUNS:")
+    print(conn.execute("SELECT id, run_name FROM run;").fetchall())
+
     print("\nMODELS:")
-    print(conn.execute("SELECT * FROM model;").fetchall())
+    print(conn.execute("""
+        SELECT id, model_name, parent_id, run_id
+        FROM model;
+    """).fetchall())
 
     print("\nCHECKPOINTS:")
-    print(conn.execute("SELECT * FROM checkpoint;").fetchall())
-
+    print(conn.execute("""
+    SELECT c.id, c.model_id, c.step, r.run_name
+    FROM checkpoint c
+    JOIN model m ON c.model_id = m.id
+    JOIN run r ON m.run_id = r.id;
+""").fetchall())
     print("\nMETRICS:")
-    print(conn.execute("SELECT * FROM metrics;").fetchall())
+    print(conn.execute("""
+        SELECT model_id, checkpoint_id, family, metric_name, value
+        FROM metrics;
+    """).fetchall())

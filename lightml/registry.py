@@ -10,40 +10,114 @@ import sqlite3
 import os
 
 def register_model(db: str,
+                   run_name: str,
                    model_name: str,
                    path: str,
                    parent_name: str | None = None) -> int:
+
     try:
         with sqlite3.connect(db) as conn:
             conn.execute("PRAGMA foreign_keys = ON;")
 
+            # ------------------------
+            # GET RUN ID
+            # ------------------------
+            run_row = conn.execute(
+                "SELECT id FROM run WHERE run_name = ?;",
+                (run_name,),
+            ).fetchone()
+
+            if run_row is None:
+                raise ValueError(f"Run '{run_name}' does not exist")
+
+            run_id = run_row[0]
+
+            # ------------------------
+            # RESOLVE PARENT (same run)
+            # ------------------------
             parent_id = None
 
             if parent_name:
                 row = conn.execute(
-                    "SELECT id FROM model WHERE model_name = ?;",
+                    """
+                    SELECT id FROM model
+WHERE model_name = ?
+                    """,
                     (parent_name,),
                 ).fetchone()
 
-                parent_id = row[0] if row else -1  # invalid FK triggers DB error
+                if row is None:
+                    raise ValueError(
+                        f"Parent model '{parent_name}' not found in run '{run_name}'"
+                    )
 
-            conn.execute(
+                parent_id = row[0]
+
+            # ------------------------
+            # INSERT MODEL
+            # ------------------------
+            cursor = conn.execute(
                 """
-                INSERT INTO model (model_name, path, parent_id)
-                VALUES (?, ?, ?);
+                INSERT INTO model (model_name, path, parent_id, run_id)
+                VALUES (?, ?, ?, ?);
                 """,
-                (model_name, str(path), parent_id),
+                (model_name, str(path), parent_id, run_id),
             )
 
+            model_id = cursor.lastrowid
             conn.commit()
 
-        return 1
+            # symlink DOPO commit
+            create_model_symlink(db, run_name, model_name, path)
+
+            return model_id
 
     except Exception as e:
         print("ERROR:", e)
         raise
+    
+    
+from pathlib import Path
 
+def create_model_symlink(db_path: str, run_name: str, model_name: str, model_path: str):
 
+    registry_root = Path(db_path).parent
+    models_dir = registry_root / "models"
+    models_dir.mkdir(exist_ok=True)
+
+    link_name = f"{run_name}__{model_name}"
+    link_path = models_dir / link_name
+
+    if link_path.exists():
+        link_path.unlink()
+
+    link_path.symlink_to(Path(model_path).resolve())
+def create_run(db: str,
+               run_name: str,
+               description: str | None = None,
+               metadata: dict | None = None) -> int:
+
+    with sqlite3.connect(db) as conn:
+        conn.execute("PRAGMA foreign_keys = ON;")
+
+        conn.execute(
+            """
+            INSERT OR IGNORE INTO run (run_name, description, metadata)
+            VALUES (?, ?, ?);
+            """,
+            (
+                run_name,
+                description,
+                json.dumps(metadata) if metadata else None
+            )
+        )
+
+        row = conn.execute(
+            "SELECT id FROM run WHERE run_name = ?;",
+            (run_name,),
+        ).fetchone()
+
+    return row[0]
 def initialize_registry(registry: RegistryInit) -> Path:
     db_name = f"{registry.registry_name}.db"
 
