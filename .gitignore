@@ -1,0 +1,6 @@
+lightml/__pycache__/__init__.cpython-312.pyc
+lightml/__pycache__/*
+lightml/models/__pycache__/*
+server/__pycache__/*
+
+**/__pycache__/*
