@@ -1,0 +1,18 @@
+# ── LightML settings ──────────────────────────────
+db:        /path/to/your/registry.db    # LightML database
+run_name:  my-eval-run                  # Experiment name (becomes the model name too)
+
+# ── Model to evaluate ────────────────────────────
+model_path: Fastweb/FastwebMIIA-7B      # HuggingFace model id or local path
+
+# ── Evaluation matrix ────────────────────────────
+lang:       [ita, eng]                  # Languages: ita, eng, or both
+benchmarks: [hellaswag]                 # Benchmarks: hellaswag, mmlu, arc
+shots:      [0, 5]                      # Few-shot settings
+num_gpus:   1                           # 1 = single GPU, >1 = accelerate multi-GPU
+
+# ── Optional ─────────────────────────────────────
+# limit: 20                             # Cap samples per task (for quick tests)
+# force: true                           # Overwrite existing metrics instead of skipping
+# output_dir: ./json                    # Where lm_eval writes result JSONs
+# ita_tasks_path: /path/to/ita-bench    # Path to Italian benchmark task definitions

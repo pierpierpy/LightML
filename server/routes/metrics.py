@@ -7,11 +7,13 @@ router = APIRouter()
 @router.post("/metrics/add", tags=["metrics"])
 async def add_metric_route(metric: mt.MetricCreate):
     result = add_metric(
-        db_path=metric.db,
+        db=metric.db,
         model_name=metric.model_name,
         family=metric.family,
         metric_name=metric.metric_name,
         value=metric.value,
+        run_name=metric.run_name,
+        checkpoint_id=metric.checkpoint_id,
     )
 
     if result == 1:

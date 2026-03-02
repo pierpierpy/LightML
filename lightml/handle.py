@@ -1,6 +1,6 @@
 from lightml.registry import register_model, create_run
 from lightml.checkpoints import register_checkpoint
-from lightml.metrics import add_metric
+from lightml.metrics import add_metric, METRIC_INSERTED, METRIC_UPDATED, METRIC_SKIPPED
 
 
 class LightMLHandle:
@@ -45,7 +45,7 @@ class LightMLHandle:
     # METRICS
     # ------------------------
 
-    def log_model_metric(self, model_name: str, family: str, metric_name: str, value: float):
+    def log_model_metric(self, model_name: str, family: str, metric_name: str, value: float, *, force: bool = False):
         return add_metric(
             db=self.db,
             run_name=self.run_name,
@@ -53,13 +53,15 @@ class LightMLHandle:
             metric_name=metric_name,
             value=value,
             model_name=model_name,
+            force=force,
         )
 
-    def log_checkpoint_metric(self, checkpoint_id: int, family: str, metric_name: str, value: float):
+    def log_checkpoint_metric(self, checkpoint_id: int, family: str, metric_name: str, value: float, *, force: bool = False):
         return add_metric(
             db=self.db,
             family=family,
             metric_name=metric_name,
             value=value,
             checkpoint_id=checkpoint_id,
+            force=force,
         )

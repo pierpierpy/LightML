@@ -1,0 +1,1155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LightML Dashboard</title>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<style>
+/* ============================== RESET & BASE ============================== */
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: linear-gradient(135deg, #0f0f1a 0%, #1a1a2e 100%);
+    color: #e0e0e0;
+    min-height: 100vh;
+    overflow-x: hidden;
+}
+
+/* ============================== HEADER ============================== */
+.header {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: rgba(15, 15, 26, 0.95);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid #2d2d44;
+    padding: 12px 24px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 18px;
+    font-weight: 700;
+    color: #60a5fa;
+    white-space: nowrap;
+}
+.logo .icon { font-size: 24px; }
+.logo .sub {
+    font-size: 11px;
+    font-weight: 400;
+    color: #6b7280;
+    margin-left: 4px;
+}
+
+.header-controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 1;
+    justify-content: flex-end;
+}
+
+.db-badge {
+    background: rgba(59, 130, 246, 0.15);
+    border: 1px solid rgba(59, 130, 246, 0.3);
+    color: #93c5fd;
+    padding: 5px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-family: monospace;
+}
+
+select, .btn {
+    background: #1f2937;
+    border: 1px solid #374151;
+    color: #e0e0e0;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+select:hover, .btn:hover { border-color: #60a5fa; }
+select:focus, .btn:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 2px rgba(59,130,246,0.2); }
+
+.btn-primary { background: #3b82f6; border-color: #3b82f6; color: #fff; font-weight: 600; }
+.btn-primary:hover { background: #2563eb; }
+.btn-icon { display: flex; align-items: center; gap: 4px; }
+
+/* ============================== VIEW TOGGLE ============================== */
+.view-toggle {
+    display: flex;
+    border: 1px solid #374151;
+    border-radius: 6px;
+    overflow: hidden;
+}
+.view-toggle .vt-btn {
+    background: #1f2937;
+    border: none;
+    color: #9ca3af;
+    padding: 6px 14px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+.view-toggle .vt-btn:not(:last-child) { border-right: 1px solid #374151; }
+.view-toggle .vt-btn:hover { background: #374151; color: #e0e0e0; }
+.view-toggle .vt-btn.active { background: #3b82f6; color: #fff; }
+
+/* ============================== TABS ============================== */
+.tabs-bar {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    padding: 8px 24px 0;
+    background: rgba(15, 15, 26, 0.6);
+    border-bottom: 1px solid #2d2d44;
+    overflow-x: auto;
+}
+
+.tab {
+    padding: 10px 20px;
+    font-size: 12px;
+    font-weight: 500;
+    color: #9ca3af;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.2s;
+}
+.tab:hover { color: #e0e0e0; background: rgba(255,255,255,0.03); }
+.tab.active {
+    color: #60a5fa;
+    border-bottom-color: #3b82f6;
+    background: rgba(59, 130, 246, 0.08);
+}
+
+.tab-all { color: #a78bfa; }
+.tab-all.active { color: #a78bfa; border-bottom-color: #7c3aed; }
+
+/* ============================== CONTENT ============================== */
+.content {
+    padding: 20px 24px 40px;
+    max-width: 100%;
+    overflow-x: auto;
+}
+
+/* ============================== STATS BAR ============================== */
+.stats-bar {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+
+.stat-card {
+    background: rgba(30, 30, 50, 0.8);
+    border: 1px solid #2d2d44;
+    border-radius: 10px;
+    padding: 14px 20px;
+    min-width: 140px;
+    flex: 1;
+    max-width: 220px;
+}
+.stat-card .label { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: #6b7280; margin-bottom: 4px; }
+.stat-card .value { font-size: 22px; font-weight: 700; color: #60a5fa; }
+.stat-card .value.green { color: #34d399; }
+.stat-card .value.purple { color: #a78bfa; }
+.stat-card .value.amber { color: #fbbf24; }
+
+/* ============================== TOGGLE BAR ============================== */
+.toggle-bar {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 16px;
+    padding: 8px 0;
+}
+
+.toggle-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: #9ca3af;
+    cursor: pointer;
+    user-select: none;
+}
+.toggle-label input[type="checkbox"] {
+    accent-color: #3b82f6;
+    width: 14px;
+    height: 14px;
+}
+
+.search-box {
+    background: #1f2937;
+    border: 1px solid #374151;
+    color: #e0e0e0;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    width: 220px;
+    transition: border-color 0.2s;
+}
+.search-box:focus { outline: none; border-color: #3b82f6; }
+.search-box::placeholder { color: #4b5563; }
+
+/* ============================== TABLE ============================== */
+.table-wrapper {
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid #2d2d44;
+    background: rgba(20, 20, 35, 0.9);
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+}
+
+thead th {
+    background: #1f2937;
+    padding: 10px 14px;
+    text-align: center;
+    font-weight: 600;
+    color: #9ca3af;
+    border-bottom: 2px solid #374151;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    white-space: nowrap;
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.2s;
+}
+thead th:hover { background: #374151; color: #e0e0e0; }
+thead th.sorted-asc::after { content: ' ▲'; font-size: 9px; color: #60a5fa; }
+thead th.sorted-desc::after { content: ' ▼'; font-size: 9px; color: #60a5fa; }
+
+thead th:first-child {
+    text-align: left;
+    position: sticky;
+    left: 0;
+    z-index: 11;
+    min-width: 200px;
+}
+
+thead th.family-header {
+    background: #1e293b;
+    color: #60a5fa;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    border-bottom: 1px solid #3b82f6;
+    cursor: default;
+}
+
+tbody td {
+    padding: 8px 14px;
+    text-align: center;
+    border-bottom: 1px solid rgba(55, 65, 81, 0.4);
+    transition: background 0.15s;
+}
+
+tbody tr:hover td { background: rgba(59, 130, 246, 0.06); }
+tbody tr:nth-child(even) td { background: rgba(55, 65, 81, 0.15); }
+tbody tr:hover:nth-child(even) td { background: rgba(59, 130, 246, 0.08); }
+
+tbody td:first-child {
+    text-align: left;
+    font-weight: 600;
+    position: sticky;
+    left: 0;
+    background: rgba(20, 20, 35, 0.98);
+    z-index: 5;
+}
+tbody tr:nth-child(even) td:first-child { background: rgba(25, 25, 40, 0.98); }
+tbody tr:hover td:first-child { background: rgba(30, 40, 60, 0.98); }
+
+/* Cell coloring */
+.cell-best { color: #34d399; font-weight: 700; background: rgba(16, 185, 129, 0.12) !important; }
+.cell-good { color: #34d399; }
+.cell-mid  { color: #fbbf24; }
+.cell-low  { color: #f87171; }
+.cell-na   { color: #4b5563; }
+
+/* Model name styling */
+.model-name { display: flex; align-items: center; gap: 8px; }
+.model-name .badge {
+    font-size: 9px;
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+.badge-model { background: rgba(59, 130, 246, 0.2); color: #60a5fa; }
+.badge-ckpt  { background: rgba(251, 191, 36, 0.2); color: #fbbf24; }
+.model-name .run-tag {
+    font-size: 9px;
+    color: #6b7280;
+    margin-left: auto;
+    font-weight: 400;
+}
+
+/* ============================== GRAPH VIEW ============================== */
+#graphView {
+    display: none;
+    position: relative;
+    width: 100%;
+    height: calc(100vh - 160px);
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid #2d2d44;
+    background: rgba(10, 10, 20, 0.95);
+}
+#graphView svg { width: 100%; height: 100%; }
+
+/* Graph elements */
+.link { stroke: #4a5568; stroke-width: 2; stroke-opacity: 0.6; fill: none; }
+.link:hover { stroke: #718096; stroke-width: 3; }
+.arrow { fill: #4a5568; }
+
+.node-group { cursor: pointer; }
+.node-circle {
+    stroke: #fff;
+    stroke-width: 2;
+    filter: drop-shadow(0 4px 8px rgba(0,0,0,0.4));
+    transition: all 0.2s;
+}
+.node-group:hover .node-circle {
+    stroke-width: 4;
+    filter: drop-shadow(0 6px 20px rgba(0,0,0,0.6));
+}
+.node-circle.selected { stroke: #3b82f6; stroke-width: 4px; }
+
+.node-label {
+    font-size: 11px;
+    font-weight: 600;
+    fill: #fff;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+    pointer-events: none;
+}
+
+/* ============================== GRAPH TOOLTIP ============================== */
+.graph-tooltip {
+    position: absolute;
+    background: rgba(30, 30, 50, 0.95);
+    border: 1px solid #4a5568;
+    border-radius: 12px;
+    padding: 15px;
+    font-size: 12px;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s;
+    max-width: 450px;
+    min-width: 300px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+    backdrop-filter: blur(10px);
+    z-index: 2000;
+}
+.graph-tooltip.show { opacity: 1; pointer-events: auto; }
+.graph-tooltip h3 { color: #60a5fa; font-size: 14px; margin-bottom: 8px; }
+.graph-tooltip .gt-type {
+    display: inline-block;
+    font-size: 9px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-weight: 600;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+}
+.gt-type-model { background: rgba(59,130,246,0.2); color: #60a5fa; }
+.gt-type-ckpt  { background: rgba(251,191,36,0.2); color: #fbbf24; }
+
+.graph-tooltip .gt-path {
+    font-family: monospace;
+    font-size: 10px;
+    color: #9ca3af;
+    background: rgba(0,0,0,0.3);
+    padding: 6px 8px;
+    border-radius: 4px;
+    margin: 6px 0;
+    word-break: break-all;
+}
+.benchmark-dots {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+    padding: 8px;
+    background: rgba(0,0,0,0.2);
+    border-radius: 6px;
+}
+.dot-group {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 10px;
+    color: #9ca3af;
+}
+.dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+}
+.dot.has { background: #10b981; }
+.dot.no  { background: #374151; }
+.graph-tooltip .gt-close {
+    position: absolute;
+    top: 8px;
+    right: 10px;
+    background: #374151;
+    border: none;
+    color: #9ca3af;
+    width: 22px;
+    height: 22px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+}
+.graph-tooltip .gt-close:hover { background: #4b5563; color: #fff; }
+
+/* Graph search */
+.graph-search {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    z-index: 50;
+}
+
+/* ============================== CELL TOOLTIP ============================== */
+.cell-tooltip {
+    position: fixed;
+    background: rgba(30, 30, 50, 0.97);
+    border: 1px solid #4a5568;
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 11px;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.15s;
+    z-index: 2000;
+    max-width: 300px;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+}
+.cell-tooltip.show { opacity: 1; }
+.cell-tooltip .tt-label { color: #9ca3af; font-size: 10px; }
+.cell-tooltip .tt-value { color: #60a5fa; font-weight: 600; font-size: 14px; margin-top: 2px; }
+.cell-tooltip .tt-rank { color: #6b7280; font-size: 10px; margin-top: 4px; }
+
+/* ============================== EMPTY STATE ============================== */
+.empty-state {
+    text-align: center;
+    padding: 80px 20px;
+    color: #4b5563;
+}
+.empty-state .icon { font-size: 48px; margin-bottom: 16px; }
+.empty-state h3 { color: #6b7280; font-size: 16px; margin-bottom: 8px; }
+.empty-state p { font-size: 13px; }
+
+/* ============================== LOADING ============================== */
+.loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 60px;
+    gap: 12px;
+    color: #6b7280;
+}
+.spinner {
+    width: 20px; height: 20px;
+    border: 2px solid #374151;
+    border-top-color: #3b82f6;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ============================== RESPONSIVE ============================== */
+@media (max-width: 768px) {
+    .header { flex-wrap: wrap; gap: 10px; padding: 10px 16px; }
+    .content { padding: 12px 16px; }
+    .stats-bar { gap: 10px; }
+}
+</style>
+</head>
+<body>
+
+<!-- ==================== HEADER ==================== -->
+<div class="header">
+    <div class="logo">
+        <span class="icon">⚡</span>
+        <span>LightML<span class="sub">Dashboard</span></span>
+    </div>
+    <div class="header-controls">
+        <div class="view-toggle">
+            <button class="vt-btn active" id="btnTableView" onclick="switchView('table')">📊 Table</button>
+            <button class="vt-btn" id="btnGraphView" onclick="switchView('graph')">🔗 Graph</button>
+        </div>
+        <span class="db-badge" id="dbBadge">—</span>
+        <select id="runSelect" title="Filter by run">
+            <option value="">All runs</option>
+        </select>
+        <button class="btn btn-icon" onclick="refresh()" title="Refresh data">↻ Refresh</button>
+        <button class="btn btn-icon" onclick="exportExcel()" title="Export as Excel">⬇ Excel</button>
+    </div>
+</div>
+
+<!-- ==================== FAMILY TABS ==================== -->
+<div class="tabs-bar" id="tabsBar"></div>
+
+<!-- ==================== CONTENT ==================== -->
+<div class="content">
+    <!-- Stats -->
+    <div class="stats-bar" id="statsBar"></div>
+
+    <!-- Table View -->
+    <div id="tableView">
+        <div class="toggle-bar">
+            <input class="search-box" type="text" id="searchBox" placeholder="Search models..." oninput="renderTable()">
+            <label class="toggle-label">
+                <input type="checkbox" id="showCheckpoints" onchange="renderTable()">
+                Show checkpoints
+            </label>
+            <label class="toggle-label">
+                <input type="checkbox" id="highlightBest" checked onchange="renderTable()">
+                Highlight best
+            </label>
+            <label class="toggle-label">
+                <input type="checkbox" id="colorCells" checked onchange="renderTable()">
+                Color cells
+            </label>
+        </div>
+        <div id="tableContainer">
+            <div class="loading"><div class="spinner"></div> Loading data…</div>
+        </div>
+    </div>
+
+    <!-- Graph View -->
+    <div id="graphView">
+        <div class="graph-search">
+            <input class="search-box" type="text" id="graphSearchBox" placeholder="Search nodes..." oninput="filterGraphNodes()">
+        </div>
+        <svg id="graphSvg"></svg>
+        <div class="graph-tooltip" id="graphTooltip"></div>
+    </div>
+</div>
+
+<!-- ==================== TABLE TOOLTIP ==================== -->
+<div class="cell-tooltip" id="tooltip"></div>
+
+<script>
+/* ======================================================================
+   STATE
+   ====================================================================== */
+let DATA = null;
+let TABLE = null;
+let GRAPH = null;
+let activeFamily = null;
+let sortCol = null;
+let sortDir = 'desc';
+let currentView = 'table';
+let graphSimulation = null;
+
+/* ======================================================================
+   VIEW SWITCH
+   ====================================================================== */
+function switchView(view) {
+    currentView = view;
+    document.getElementById('tableView').style.display = view === 'table' ? 'block' : 'none';
+    document.getElementById('graphView').style.display = view === 'graph' ? 'block' : 'none';
+    document.getElementById('btnTableView').classList.toggle('active', view === 'table');
+    document.getElementById('btnGraphView').classList.toggle('active', view === 'graph');
+
+    if (view === 'graph' && !GRAPH) loadGraph();
+}
+
+/* ======================================================================
+   INIT
+   ====================================================================== */
+document.addEventListener('DOMContentLoaded', () => refresh());
+
+async function refresh() {
+    try {
+        const resp = await fetch('/api/data');
+        DATA = await resp.json();
+        document.getElementById('dbBadge').textContent = DATA.db_name;
+        populateRuns();
+        populateTabs();
+        renderStats();
+        await loadTable();
+
+        if (currentView === 'graph') { GRAPH = null; loadGraph(); }
+    } catch (e) {
+        document.getElementById('tableContainer').innerHTML =
+            `<div class="empty-state"><div class="icon">⚠️</div><h3>Connection Error</h3><p>${e.message}</p></div>`;
+    }
+}
+
+/* ======================================================================
+   RUNS
+   ====================================================================== */
+function populateRuns() {
+    const sel = document.getElementById('runSelect');
+    const current = sel.value;
+    sel.innerHTML = '<option value="">All runs</option>';
+    for (const r of DATA.runs) {
+        const opt = document.createElement('option');
+        opt.value = r.id;
+        opt.textContent = r.run_name;
+        sel.appendChild(opt);
+    }
+    sel.value = current;
+    sel.onchange = () => loadTable();
+}
+
+/* ======================================================================
+   TABS
+   ====================================================================== */
+function populateTabs() {
+    const bar = document.getElementById('tabsBar');
+    bar.innerHTML = '';
+
+    const allTab = document.createElement('button');
+    allTab.className = 'tab tab-all' + (activeFamily === null ? ' active' : '');
+    allTab.textContent = '✦ All Families';
+    allTab.onclick = () => { activeFamily = null; sortCol = null; populateTabs(); loadTable(); };
+    bar.appendChild(allTab);
+
+    for (const f of DATA.families) {
+        const tab = document.createElement('button');
+        tab.className = 'tab' + (activeFamily === f ? ' active' : '');
+        tab.textContent = f;
+        tab.onclick = () => { activeFamily = f; sortCol = null; populateTabs(); loadTable(); };
+        bar.appendChild(tab);
+    }
+}
+
+/* ======================================================================
+   STATS
+   ====================================================================== */
+function renderStats() {
+    const bar = document.getElementById('statsBar');
+    const stats = [
+        { label: 'Runs',        value: DATA.runs.length,        cls: '' },
+        { label: 'Models',      value: DATA.models.length,      cls: 'green' },
+        { label: 'Checkpoints', value: DATA.checkpoints.length, cls: 'amber' },
+        { label: 'Metrics',     value: DATA.metrics.length,     cls: 'purple' },
+        { label: 'Families',    value: DATA.families.length,    cls: '' },
+    ];
+    bar.innerHTML = stats.map(s => `
+        <div class="stat-card">
+            <div class="label">${s.label}</div>
+            <div class="value ${s.cls}">${s.value}</div>
+        </div>
+    `).join('');
+}
+
+/* ======================================================================
+   LOAD TABLE DATA
+   ====================================================================== */
+async function loadTable() {
+    const runId = document.getElementById('runSelect').value;
+    let url = '/api/table?';
+    if (activeFamily) url += `family=${encodeURIComponent(activeFamily)}&`;
+    if (runId) url += `run_id=${runId}&`;
+
+    const resp = await fetch(url);
+    TABLE = await resp.json();
+    renderTable();
+}
+
+/* ======================================================================
+   RENDER TABLE
+   ====================================================================== */
+function renderTable() {
+    const container = document.getElementById('tableContainer');
+    if (!TABLE || !TABLE.rows.length) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <div class="icon">📊</div>
+                <h3>No data yet</h3>
+                <p>Register models and log metrics to see them here.</p>
+            </div>`;
+        return;
+    }
+
+    const showCkpt   = document.getElementById('showCheckpoints').checked;
+    const highlight   = document.getElementById('highlightBest').checked;
+    const colorize    = document.getElementById('colorCells').checked;
+    const search      = document.getElementById('searchBox').value.toLowerCase();
+
+    let rows = TABLE.rows.filter(r => {
+        if (!showCkpt && r.type === 'checkpoint') return false;
+        if (search && !r.name.toLowerCase().includes(search)) return false;
+        return true;
+    });
+
+    let families;
+    if (activeFamily) {
+        families = [{ name: activeFamily, metrics: TABLE.metric_names }];
+    } else {
+        const fm = {};
+        for (const m of DATA.metrics) {
+            if (!fm[m.family]) fm[m.family] = new Set();
+            fm[m.family].add(m.metric_name);
+        }
+        families = Object.entries(fm).map(([name, mset]) => ({
+            name,
+            metrics: [...mset].sort()
+        }));
+    }
+
+    const allMetrics = families.flatMap(f => f.metrics);
+
+    if (sortCol && allMetrics.includes(sortCol)) {
+        rows.sort((a, b) => {
+            const va = a.metrics[sortCol] ?? -Infinity;
+            const vb = b.metrics[sortCol] ?? -Infinity;
+            return sortDir === 'asc' ? va - vb : vb - va;
+        });
+    }
+
+    const best = {};
+    if (highlight) {
+        for (const metric of allMetrics) {
+            let maxVal = -Infinity;
+            for (const r of rows) {
+                const v = r.metrics[metric];
+                if (v != null && v > maxVal) maxVal = v;
+            }
+            if (maxVal > -Infinity) best[metric] = maxVal;
+        }
+    }
+
+    const ranges = {};
+    if (colorize) {
+        for (const metric of allMetrics) {
+            let min = Infinity, max = -Infinity;
+            for (const r of rows) {
+                const v = r.metrics[metric];
+                if (v != null) { if (v < min) min = v; if (v > max) max = v; }
+            }
+            if (min < Infinity) ranges[metric] = { min, max };
+        }
+    }
+
+    let html = '<div class="table-wrapper"><table>';
+
+    if (!activeFamily && families.length > 1) {
+        html += '<thead><tr><th></th>';
+        for (const f of families) {
+            html += `<th colspan="${f.metrics.length}" class="family-header">${esc(f.name)}</th>`;
+        }
+        html += '</tr>';
+    } else {
+        html += '<thead>';
+    }
+
+    html += '<tr><th onclick="toggleSort(\'__name__\')">Model</th>';
+    for (const f of families) {
+        for (const m of f.metrics) {
+            const sortCls = sortCol === m ? (sortDir === 'asc' ? 'sorted-asc' : 'sorted-desc') : '';
+            html += `<th class="${sortCls}" onclick="toggleSort('${esc(m)}')">${esc(m)}</th>`;
+        }
+    }
+    html += '</tr></thead><tbody>';
+
+    for (const r of rows) {
+        html += '<tr>';
+        const badge = r.type === 'model'
+            ? '<span class="badge badge-model">M</span>'
+            : '<span class="badge badge-ckpt">C</span>';
+        const runTag = r.run ? `<span class="run-tag">${esc(r.run)}</span>` : '';
+        html += `<td><div class="model-name">${badge} ${esc(r.name)} ${runTag}</div></td>`;
+
+        for (const f of families) {
+            for (const m of f.metrics) {
+                const v = r.metrics[m];
+                if (v == null) {
+                    html += '<td class="cell-na">—</td>';
+                } else {
+                    let cls = '';
+                    if (highlight && best[m] === v) cls = 'cell-best';
+                    else if (colorize && ranges[m]) cls = colorClass(v, ranges[m]);
+                    html += `<td class="${cls}" data-metric="${esc(m)}" data-value="${v}" data-model="${esc(r.name)}">${formatVal(v)}</td>`;
+                }
+            }
+        }
+        html += '</tr>';
+    }
+    html += '</tbody></table></div>';
+    container.innerHTML = html;
+
+    container.querySelectorAll('td[data-metric]').forEach(td => {
+        td.addEventListener('mouseenter', showTooltip);
+        td.addEventListener('mouseleave', hideTooltip);
+    });
+}
+
+/* ======================================================================
+   SORTING
+   ====================================================================== */
+function toggleSort(col) {
+    if (col === '__name__') {
+        if (sortCol === '__name__') sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+        else { sortCol = '__name__'; sortDir = 'asc'; }
+        TABLE.rows.sort((a, b) => {
+            const cmp = a.name.localeCompare(b.name);
+            return sortDir === 'asc' ? cmp : -cmp;
+        });
+        sortCol = '__name__';
+        renderTable();
+        return;
+    }
+    if (sortCol === col) sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+    else { sortCol = col; sortDir = 'desc'; }
+    renderTable();
+}
+
+/* ======================================================================
+   COLOR HELPERS
+   ====================================================================== */
+function colorClass(value, range) {
+    if (range.max === range.min) return '';
+    const pct = (value - range.min) / (range.max - range.min);
+    if (pct >= 0.75) return 'cell-good';
+    if (pct >= 0.4)  return 'cell-mid';
+    return 'cell-low';
+}
+
+function formatVal(v) {
+    if (v == null) return '—';
+    if (v > 0 && v <= 1) return (v * 100).toFixed(2) + '%';
+    if (Number.isInteger(v)) return v.toString();
+    return v.toFixed(4);
+}
+
+function esc(s) {
+    if (s == null) return '';
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+/* ======================================================================
+   TABLE TOOLTIP
+   ====================================================================== */
+function showTooltip(e) {
+    const td = e.currentTarget;
+    const tt = document.getElementById('tooltip');
+    tt.innerHTML = `
+        <div class="tt-label">${esc(td.dataset.model)}</div>
+        <div class="tt-value">${esc(td.dataset.metric)}: ${formatVal(parseFloat(td.dataset.value))}</div>
+        <div class="tt-rank">Raw: ${td.dataset.value}</div>
+    `;
+    tt.classList.add('show');
+    const rect = td.getBoundingClientRect();
+    tt.style.left = rect.left + rect.width / 2 - tt.offsetWidth / 2 + 'px';
+    tt.style.top  = rect.top - tt.offsetHeight - 8 + 'px';
+}
+
+function hideTooltip() {
+    document.getElementById('tooltip').classList.remove('show');
+}
+
+/* ======================================================================
+   EXCEL EXPORT (server-side via /api/export)
+   ====================================================================== */
+function exportExcel() {
+    window.location.href = '/api/export';
+}
+
+/* ======================================================================
+   ██████  ██████   █████  ██████  ██   ██
+  ██       ██   ██ ██   ██ ██   ██ ██   ██
+  ██   ███ ██████  ███████ ██████  ███████
+  ██    ██ ██   ██ ██   ██ ██     ██    ██
+   ██████  ██   ██ ██   ██ ██     ██   ██
+   D3 FORCE-DIRECTED GRAPH VIEW
+   ====================================================================== */
+
+const COLOR_PALETTE = [
+    "#f472b6", "#a78bfa", "#60a5fa", "#34d399", "#fbbf24", "#fb923c",
+    "#f87171", "#e879f9", "#22d3ee", "#a3e635", "#818cf8", "#2dd4bf",
+    "#facc15", "#f97316"
+];
+const NEUTRAL_COLOR = "#6b7280";
+
+async function loadGraph() {
+    const resp = await fetch('/api/graph');
+    const data = await resp.json();
+    GRAPH = data;
+    renderGraph(data);
+}
+
+function renderGraph(data) {
+    const container = document.getElementById('graphView');
+    const svgEl = document.getElementById('graphSvg');
+
+    // Preserve the search + tooltip elements, clear only the SVG
+    svgEl.innerHTML = '';
+
+    const nodes = data.nodes;
+    const links = data.links;
+
+    if (!nodes.length) {
+        svgEl.outerHTML = `<div class="empty-state" style="padding-top:120px;">
+            <div class="icon">🔗</div>
+            <h3>No models to graph</h3>
+            <p>Register models with parent relationships to see the graph.</p>
+        </div>`;
+        return;
+    }
+
+    const width = container.clientWidth || 900;
+    const height = container.clientHeight || 600;
+
+    const svg = d3.select(svgEl)
+        .attr("viewBox", [0, 0, width, height]);
+
+    // Zoom group
+    const g = svg.append("g");
+    svg.call(d3.zoom()
+        .scaleExtent([0.2, 4])
+        .on("zoom", (e) => g.attr("transform", e.transform)));
+
+    // Assign group colors
+    const groupColors = {};
+    let colorIdx = 0;
+    const groups = [...new Set(nodes.map(n => n.group))];
+    groups.forEach(grp => {
+        groupColors[grp] = COLOR_PALETTE[colorIdx % COLOR_PALETTE.length];
+        colorIdx++;
+    });
+
+    // Compute genealogy levels for initial positioning
+    const nodeById = {};
+    nodes.forEach(n => { nodeById[n.id] = n; });
+
+    function getLevel(node, visited = new Set()) {
+        if (visited.has(node.id)) return 0;
+        visited.add(node.id);
+        if (!node.parent || !nodeById[node.parent]) return 0;
+        return 1 + getLevel(nodeById[node.parent], visited);
+    }
+
+    nodes.forEach(n => { n.level = getLevel(n); });
+    const maxLevel = Math.max(1, ...nodes.map(n => n.level));
+    const levelHeight = height / (maxLevel + 2);
+
+    // Group by family for initial X spread
+    const famMap = {};
+    nodes.forEach(n => {
+        const fam = n.group || n.id;
+        if (!famMap[fam]) famMap[fam] = [];
+        famMap[fam].push(n);
+    });
+    const famNames = Object.keys(famMap).sort((a, b) => famMap[b].length - famMap[a].length);
+    const famSpacing = Math.max(200, width / (famNames.length + 1));
+    let famX = famSpacing / 2;
+
+    famNames.forEach(fam => {
+        const famNodes = famMap[fam];
+        famNodes.sort((a, b) => a.level - b.level);
+        famNodes.forEach((n, i) => {
+            n.x = famX + (i % 3) * 60 - 30;
+            n.y = 80 + n.level * levelHeight;
+        });
+        famX += famSpacing;
+    });
+
+    // Arrow marker
+    svg.append("defs").append("marker")
+        .attr("id", "arrowhead")
+        .attr("viewBox", "0 -5 10 10")
+        .attr("refX", 25)
+        .attr("refY", 0)
+        .attr("markerWidth", 8)
+        .attr("markerHeight", 8)
+        .attr("orient", "auto")
+        .append("path")
+        .attr("d", "M0,-5L10,0L0,5")
+        .attr("class", "arrow");
+
+    // Links
+    const link = g.append("g")
+        .selectAll("path")
+        .data(links)
+        .join("path")
+        .attr("class", "link")
+        .attr("marker-end", "url(#arrowhead)");
+
+    // Force simulation
+    graphSimulation = d3.forceSimulation(nodes)
+        .force("link", d3.forceLink(links).id(d => d.id).distance(150).strength(0.3))
+        .force("charge", d3.forceManyBody().strength(-300))
+        .force("center", d3.forceCenter(width / 2, height / 2))
+        .force("collision", d3.forceCollide().radius(50))
+        .force("y", d3.forceY(d => 80 + d.level * levelHeight).strength(0.1))
+        .alphaDecay(0.02)
+        .velocityDecay(0.4);
+
+    // Node groups
+    const node = g.append("g")
+        .selectAll("g")
+        .data(nodes)
+        .join("g")
+        .attr("class", "node-group")
+        .call(d3.drag()
+            .on("start", dragstarted)
+            .on("drag", dragged)
+            .on("end", dragended));
+
+    // Node circles — radius based on score, color by group
+    node.append("circle")
+        .attr("class", "node-circle")
+        .attr("r", d => {
+            if (d.type === 'checkpoint') return 12;
+            return 20 + (d.score > 0 ? d.score / 10 : 0);
+        })
+        .attr("fill", d => groupColors[d.group] || NEUTRAL_COLOR)
+        .attr("stroke", "#fff")
+        .attr("stroke-width", 2);
+
+    // Labels below node
+    node.append("text")
+        .attr("class", "node-label")
+        .attr("dy", d => {
+            const r = d.type === 'checkpoint' ? 12 : 20 + (d.score > 0 ? d.score / 10 : 0);
+            return r + 15;
+        })
+        .attr("text-anchor", "middle")
+        .text(d => d.id.length > 25 ? d.id.slice(0, 22) + '…' : d.id);
+
+    // Step badge for checkpoints
+    node.filter(d => d.type === 'checkpoint')
+        .append("text")
+        .attr("dy", -18)
+        .attr("text-anchor", "middle")
+        .attr("fill", "#fbbf24")
+        .attr("font-size", "9px")
+        .attr("font-weight", "bold")
+        .attr("pointer-events", "none")
+        .text(d => `step-${d.step}`);
+
+    // Tick update
+    graphSimulation.on("tick", () => {
+        link.attr("d", d => `M${d.source.x},${d.source.y}L${d.target.x},${d.target.y}`);
+        node.attr("transform", d => `translate(${d.x},${d.y})`);
+    });
+
+    // Tooltip interactions
+    const tooltip = d3.select("#graphTooltip");
+    let tooltipLocked = false;
+
+    node.on("mouseover", (e, d) => {
+        if (tooltipLocked) return;
+        showGraphTooltip(e, d, tooltip, container, false);
+    })
+    .on("mouseout", () => {
+        if (tooltipLocked) return;
+        tooltip.classed("show", false);
+    })
+    .on("click", (e, d) => {
+        e.stopPropagation();
+        tooltipLocked = true;
+        showGraphTooltip(e, d, tooltip, container, true);
+    });
+
+    svg.on("click", () => {
+        tooltipLocked = false;
+        tooltip.classed("show", false);
+    });
+
+    // Drag handlers
+    function dragstarted(e) {
+        if (!e.active) graphSimulation.alphaTarget(0.1).restart();
+        e.subject.fx = e.subject.x;
+        e.subject.fy = e.subject.y;
+    }
+    function dragged(e) {
+        e.subject.fx = e.x;
+        e.subject.fy = e.y;
+    }
+    function dragended(e) {
+        if (!e.active) graphSimulation.alphaTarget(0);
+    }
+}
+
+function getBenchmarkDots(d) {
+    if (!GRAPH || !GRAPH.families || !GRAPH.families.length) return '';
+    let html = '<div class="benchmark-dots">';
+    for (const family of GRAPH.families) {
+        const hasAny = Object.keys(d.metrics).some(k => k.startsWith(family + '/'));
+        html += `<span class="dot-group"><span class="dot ${hasAny ? 'has' : 'no'}"></span>${esc(family)}</span>`;
+    }
+    html += '</div>';
+    return html;
+}
+
+function showGraphTooltip(e, d, tooltip, container, locked) {
+    const metricsHtml = getBenchmarkDots(d);
+
+    const typeBadge = d.type === 'model'
+        ? '<span class="gt-type gt-type-model">model</span>'
+        : '<span class="gt-type gt-type-ckpt">checkpoint</span>';
+
+    const closeBtn = locked
+        ? `<button class="gt-close" onclick="event.stopPropagation(); document.getElementById('graphTooltip').classList.remove('show')">✕</button>`
+        : '';
+
+    tooltip.html(`
+        ${closeBtn}
+        <h3>${esc(d.id)}</h3>
+        ${typeBadge}
+        ${d.run ? `<span style="color:#6b7280;font-size:10px;margin-left:8px;">run: ${esc(d.run)}</span>` : ''}
+        ${d.parent ? `<div style="color:#a78bfa;font-size:11px;margin-top:4px;">↳ parent: ${esc(d.parent)}</div>` : ''}
+        ${d.path ? `<div class="gt-path">${esc(d.path)}</div>` : ''}
+        ${d.score > 0 ? `<div style="color:#9ca3af;font-size:11px;">Avg score: <b style="color:#60a5fa;">${d.score.toFixed(1)}</b></div>` : ''}
+        ${metricsHtml}
+    `);
+
+    const rect = container.getBoundingClientRect();
+    const x = Math.min(e.clientX - rect.left + 15, rect.width - 350);
+    const y = Math.min(e.clientY - rect.top - 10, rect.height - 300);
+    tooltip.style("left", Math.max(0, x) + "px").style("top", Math.max(0, y) + "px");
+    tooltip.classed("show", true);
+}
+
+/* ======================================================================
+   GRAPH SEARCH / FILTER
+   ====================================================================== */
+function filterGraphNodes() {
+    const term = document.getElementById('graphSearchBox').value.toLowerCase();
+    d3.selectAll("#graphSvg .node-group").each(function(d) {
+        const match = !term || d.id.toLowerCase().includes(term) ||
+                      (d.path && d.path.toLowerCase().includes(term)) ||
+                      (d.run && d.run.toLowerCase().includes(term));
+        d3.select(this).style("opacity", match ? 1 : 0.12).style("pointer-events", match ? "all" : "none");
+    });
+    d3.selectAll("#graphSvg .link").style("opacity", term ? 0.15 : 0.6);
+}
+
+/* ======================================================================
+   AUTO-REFRESH
+   ====================================================================== */
+let _autoRefreshId = null;
+function toggleAutoRefresh(sec = 30) {
+    if (_autoRefreshId) { clearInterval(_autoRefreshId); _autoRefreshId = null; return; }
+    _autoRefreshId = setInterval(refresh, sec * 1000);
+}
+</script>
+</body>
+</html>

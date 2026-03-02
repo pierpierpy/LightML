@@ -1,13 +1,11 @@
 
-from lightml.models.registry import ModelCreate, RegistryInit
+from lightml.models.registry import RegistryInit
 from lightml.database import initialize_database
 import sqlite3
 from pathlib import Path
 import os
+import json
 
-from pathlib import Path
-import sqlite3
-import os
 
 def register_model(db: str,
                    run_name: str,
@@ -54,21 +52,27 @@ WHERE model_name = ?
                 parent_id = row[0]
 
             # ------------------------
-            # INSERT MODEL
+            # INSERT MODEL (idempotente)
             # ------------------------
             cursor = conn.execute(
                 """
-                INSERT INTO model (model_name, path, parent_id, run_id)
+                INSERT OR IGNORE INTO model (model_name, path, parent_id, run_id)
                 VALUES (?, ?, ?, ?);
                 """,
                 (model_name, str(path), parent_id, run_id),
             )
 
-            model_id = cursor.lastrowid
-            conn.commit()
-
-            # symlink DOPO commit
-            create_model_symlink(db, run_name, model_name, path)
+            if cursor.rowcount == 0:
+                # già esiste
+                row = conn.execute(
+                    "SELECT id FROM model WHERE model_name=? AND run_id=?;",
+                    (model_name, run_id)
+                ).fetchone()
+                model_id = row[0]
+            else:
+                model_id = cursor.lastrowid
+                conn.commit()
+                create_model_symlink(db, run_name, model_name, path)
 
             return model_id
 
@@ -85,13 +89,16 @@ def create_model_symlink(db_path: str, run_name: str, model_name: str, model_pat
     models_dir = registry_root / "models"
     models_dir.mkdir(exist_ok=True)
 
-    link_name = f"{run_name}__{model_name}"
+    link_name = model_name
     link_path = models_dir / link_name
 
     if link_path.exists():
         link_path.unlink()
 
     link_path.symlink_to(Path(model_path).resolve())
+    
+    
+    
 def create_run(db: str,
                run_name: str,
                description: str | None = None,
