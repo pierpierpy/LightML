@@ -478,6 +478,40 @@ tbody tr:hover td:first-child { background: rgba(30, 40, 60, 0.98); }
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
+/* ============================== SELECTION BAR ============================== */
+.selection-bar {
+    display: none;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 16px;
+    background: #1e293b;
+    border: 1px solid #3b82f6;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    font-size: 13px;
+    color: #93c5fd;
+}
+.selection-bar.active { display: flex; }
+.selection-bar .sel-count { font-weight: 700; color: #60a5fa; }
+.selection-bar .sel-actions { margin-left: auto; display: flex; gap: 8px; }
+.selection-bar .sel-btn {
+    background: #334155; border: 1px solid #475569; border-radius: 6px;
+    color: #e2e8f0; padding: 4px 12px; cursor: pointer; font-size: 12px;
+}
+.selection-bar .sel-btn:hover { background: #475569; }
+.selection-bar .sel-btn.danger { border-color: #ef4444; color: #fca5a5; }
+.selection-bar .sel-btn.danger:hover { background: #7f1d1d; }
+.selection-bar .sel-btn.primary { border-color: #3b82f6; color: #93c5fd; }
+.selection-bar .sel-btn.primary:hover { background: #1e3a5f; }
+
+/* Selection checkbox in table */
+.sel-cb { width: 16px; height: 16px; accent-color: #3b82f6; cursor: pointer; }
+tr.row-selected { background: rgba(59, 130, 246, 0.12) !important; }
+tr.row-selected td:first-child { border-left: 3px solid #3b82f6; }
+
+/* Graph node selection glow */
+.node-circle.selected { stroke: #3b82f6; stroke-width: 3px; filter: drop-shadow(0 0 6px rgba(59,130,246,0.6)); }
+
 /* ============================== RESPONSIVE ============================== */
 @media (max-width: 768px) {
     .header { flex-wrap: wrap; gap: 10px; padding: 10px 16px; }
@@ -515,6 +549,16 @@ tbody tr:hover td:first-child { background: rgba(30, 40, 60, 0.98); }
 <div class="content">
     <!-- Stats -->
     <div class="stats-bar" id="statsBar"></div>
+
+    <!-- Selection Bar -->
+    <div class="selection-bar" id="selectionBar">
+        <span><span class="sel-count" id="selCount">0</span> models selected</span>
+        <div class="sel-actions">
+            <button class="sel-btn" onclick="filterToSelected()">Filter table</button>
+            <button class="sel-btn primary" onclick="compareSelected()">Compare</button>
+            <button class="sel-btn danger" onclick="clearSelection()">Clear</button>
+        </div>
+    </div>
 
     <!-- Table View -->
     <div id="tableView">
@@ -563,6 +607,10 @@ let sortCol = null;
 let sortDir = 'desc';
 let currentView = 'table';
 let graphSimulation = null;
+
+// ── Selection sync state ─────────────────────
+const selectedModels = new Set();
+let filterBySelection = false;
 
 /* ======================================================================
    VIEW SWITCH
@@ -695,6 +743,7 @@ function renderTable() {
     let rows = TABLE.rows.filter(r => {
         if (!showCkpt && r.type === 'checkpoint') return false;
         if (search && !r.name.toLowerCase().includes(search)) return false;
+        if (filterBySelection && selectedModels.size > 0 && !selectedModels.has(r.name)) return false;
         return true;
     });
 
@@ -750,7 +799,7 @@ function renderTable() {
     let html = '<div class="table-wrapper"><table>';
 
     if (!activeFamily && families.length > 1) {
-        html += '<thead><tr><th></th>';
+        html += '<thead><tr><th></th><th></th>';
         for (const f of families) {
             html += `<th colspan="${f.metrics.length}" class="family-header">${esc(f.name)}</th>`;
         }
@@ -759,7 +808,7 @@ function renderTable() {
         html += '<thead>';
     }
 
-    html += '<tr><th onclick="toggleSort(\'__name__\')">Model</th>';
+    html += '<tr><th class="sel-th"><input type="checkbox" class="sel-cb" id="selectAllCb" onchange="toggleSelectAll(this.checked)"></th><th onclick="toggleSort(\'__name__\')">Model</th>';
     for (const f of families) {
         for (const m of f.metrics) {
             const sortCls = sortCol === m ? (sortDir === 'asc' ? 'sorted-asc' : 'sorted-desc') : '';
@@ -769,7 +818,10 @@ function renderTable() {
     html += '</tr></thead><tbody>';
 
     for (const r of rows) {
-        html += '<tr>';
+        const isSelected = selectedModels.has(r.name);
+        html += `<tr class="${isSelected ? 'row-selected' : ''}"`;
+        html += ` data-model-name="${esc(r.name)}">`;
+        html += `<td><input type="checkbox" class="sel-cb" ${isSelected ? 'checked' : ''} onchange="toggleModelSelection('${esc(r.name)}', this.checked)"></td>`;
         const badge = r.type === 'model'
             ? '<span class="badge badge-model">M</span>'
             : '<span class="badge badge-ckpt">C</span>';
@@ -869,6 +921,126 @@ function hideTooltip() {
    ====================================================================== */
 function exportExcel() {
     window.location.href = '/api/export';
+}
+
+/* ======================================================================
+   SELECTION SYNC (graph ↔ table)
+   ====================================================================== */
+function toggleModelSelection(name, checked) {
+    if (checked) selectedModels.add(name);
+    else selectedModels.delete(name);
+    syncSelectionUI();
+}
+
+function toggleSelectAll(checked) {
+    if (!TABLE) return;
+    for (const r of TABLE.rows) {
+        if (checked) selectedModels.add(r.name);
+        else selectedModels.delete(r.name);
+    }
+    syncSelectionUI();
+}
+
+function clearSelection() {
+    selectedModels.clear();
+    filterBySelection = false;
+    syncSelectionUI();
+}
+
+function filterToSelected() {
+    if (selectedModels.size === 0) return;
+    filterBySelection = !filterBySelection;
+    renderTable();
+}
+
+async function compareSelected() {
+    const names = [...selectedModels];
+    if (names.length < 2) { alert('Select at least 2 models to compare.'); return; }
+    if (names.length > 2) { alert('Compare supports exactly 2 models. Deselect extras.'); return; }
+    try {
+        const url = `/api/compare?model_a=${encodeURIComponent(names[0])}&model_b=${encodeURIComponent(names[1])}`;
+        const resp = await fetch(url);
+        const data = await resp.json();
+        if (data.error) { alert(data.error); return; }
+        showCompareModal(data);
+    } catch (e) { alert('Compare failed: ' + e.message); }
+}
+
+function showCompareModal(data) {
+    let existing = document.getElementById('compareModal');
+    if (existing) existing.remove();
+
+    let html = `<div id="compareModal" style="position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;" onclick="if(event.target===this)this.remove()">`;
+    html += `<div style="background:#1e293b;border:1px solid #334155;border-radius:12px;max-width:800px;width:95%;max-height:80vh;overflow:auto;padding:24px;">`;
+    html += `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">`;
+    html += `<h3 style="margin:0;color:#e2e8f0;">Compare: ${esc(data.model_a)} vs ${esc(data.model_b)}</h3>`;
+    html += `<button onclick="this.closest('#compareModal').remove()" style="background:none;border:none;color:#94a3b8;font-size:20px;cursor:pointer;">✕</button></div>`;
+
+    // Summary
+    const s = data.summary;
+    html += `<div style="display:flex;gap:16px;margin-bottom:16px;font-size:13px;">`;
+    html += `<span style="color:#34d399;">✅ ${s.improved} improved</span>`;
+    html += `<span style="color:#f87171;">❌ ${s.regressed} regressed</span>`;
+    html += `<span style="color:#94a3b8;">➖ ${s.unchanged} unchanged</span>`;
+    html += `<span style="color:#fbbf24;">❓ ${s.missing} missing</span></div>`;
+
+    // Table
+    html += `<table style="width:100%;border-collapse:collapse;font-size:13px;">`;
+    html += `<thead><tr style="border-bottom:1px solid #475569;color:#94a3b8;">`;
+    html += `<th style="text-align:left;padding:6px;">Family</th>`;
+    html += `<th style="text-align:left;padding:6px;">Metric</th>`;
+    html += `<th style="text-align:right;padding:6px;">${esc(data.model_a)}</th>`;
+    html += `<th style="text-align:right;padding:6px;">${esc(data.model_b)}</th>`;
+    html += `<th style="text-align:right;padding:6px;">Δ</th>`;
+    html += `<th style="text-align:right;padding:6px;">%</th>`;
+    html += `</tr></thead><tbody>`;
+
+    for (const d of data.deltas) {
+        const va = d.value_a != null ? d.value_a.toFixed(2) : '—';
+        const vb = d.value_b != null ? d.value_b.toFixed(2) : '—';
+        let dColor = '#94a3b8';
+        let deltaStr = '—', pctStr = '—';
+        if (d.delta != null) {
+            deltaStr = (d.delta >= 0 ? '+' : '') + d.delta.toFixed(2);
+            pctStr = d.pct_change != null ? ((d.pct_change >= 0 ? '+' : '') + d.pct_change.toFixed(1) + '%') : '—';
+            dColor = d.delta > 0 ? '#34d399' : d.delta < 0 ? '#f87171' : '#94a3b8';
+        }
+        html += `<tr style="border-bottom:1px solid #1e293b;">`;
+        html += `<td style="padding:5px 6px;color:#cbd5e1;">${esc(d.family)}</td>`;
+        html += `<td style="padding:5px 6px;color:#e2e8f0;">${esc(d.metric)}</td>`;
+        html += `<td style="padding:5px 6px;text-align:right;color:#94a3b8;">${va}</td>`;
+        html += `<td style="padding:5px 6px;text-align:right;color:#94a3b8;">${vb}</td>`;
+        html += `<td style="padding:5px 6px;text-align:right;color:${dColor};font-weight:600;">${deltaStr}</td>`;
+        html += `<td style="padding:5px 6px;text-align:right;color:${dColor};">${pctStr}</td>`;
+        html += `</tr>`;
+    }
+    html += `</tbody></table></div></div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+}
+
+function syncSelectionUI() {
+    // Update selection bar
+    const bar = document.getElementById('selectionBar');
+    const count = selectedModels.size;
+    bar.classList.toggle('active', count > 0);
+    document.getElementById('selCount').textContent = count;
+
+    // Update table row highlights + checkboxes
+    document.querySelectorAll('#tableContainer tr[data-model-name]').forEach(tr => {
+        const name = tr.dataset.modelName;
+        const isSel = selectedModels.has(name);
+        tr.classList.toggle('row-selected', isSel);
+        const cb = tr.querySelector('.sel-cb');
+        if (cb) cb.checked = isSel;
+    });
+
+    // Update graph node glows
+    d3.selectAll('#graphSvg .node-circle').each(function(d) {
+        d3.select(this).classed('selected', selectedModels.has(d.id));
+    });
+
+    // Reset filter if selection cleared
+    if (count === 0) filterBySelection = false;
 }
 
 /* ======================================================================
@@ -1014,7 +1186,7 @@ function renderGraph(data) {
 
     // Node circles — radius based on score, color by group
     node.append("circle")
-        .attr("class", "node-circle")
+        .attr("class", d => `node-circle${selectedModels.has(d.id) ? ' selected' : ''}`)
         .attr("r", 10)
         .attr("fill", d => groupColors[d.group] || NEUTRAL_COLOR)
         .attr("stroke", "#fff")
@@ -1058,6 +1230,12 @@ function renderGraph(data) {
     })
     .on("click", (e, d) => {
         e.stopPropagation();
+        // Toggle selection
+        const name = d.id;
+        if (selectedModels.has(name)) selectedModels.delete(name);
+        else selectedModels.add(name);
+        syncSelectionUI();
+        // Also show tooltip
         tooltipLocked = true;
         showGraphTooltip(e, d, tooltip, container, true);
     });

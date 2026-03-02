@@ -5,6 +5,8 @@ from lightml.handle import LightMLHandle
 from lightml.export import export_excel
 from lightml.registry import initialize_registry
 from lightml.models.registry import RegistryInit
+from lightml.compare import compare_models
+from lightml.scan import scan_and_import
 
 
 # =====================================================
@@ -97,6 +99,38 @@ def cmd_export(args):
     export_excel(db_path, output)
 
 
+def cmd_compare(args):
+    result = compare_models(
+        db=args.db,
+        model_a=args.model_a,
+        model_b=args.model_b,
+        run_name=args.run,
+        family=args.family,
+    )
+    print(result.to_text())
+
+
+def cmd_scan(args):
+    stats = scan_and_import(
+        db=args.db,
+        run_name=args.run,
+        path=args.path,
+        format=args.format,
+        model_prefix=args.prefix or "",
+        force=args.force,
+    )
+    print(f"\n  Scan complete")
+    print(f"  Models registered : {stats.models_registered}")
+    print(f"  Metrics logged    : {stats.metrics_logged}")
+    if stats.skipped_dirs:
+        print(f"  Skipped dirs      : {len(stats.skipped_dirs)}")
+    if stats.errors:
+        print(f"  Errors            : {len(stats.errors)}")
+        for e in stats.errors:
+            print(f"    - {e}")
+    print()
+
+
 def cmd_gui(args):
     from lightml.gui import launch
     launch(db_path=args.db, host=args.host, port=args.port)
@@ -153,6 +187,25 @@ def main():
     p_export.add_argument("--db", required=True)
     p_export.add_argument("--output")
     p_export.set_defaults(func=cmd_export)
+
+    # SCAN
+    p_scan = subparsers.add_parser("scan", help="Auto-import eval results from a directory")
+    p_scan.add_argument("--db", required=True)
+    p_scan.add_argument("--run", required=True, help="Run name to register models under")
+    p_scan.add_argument("--path", required=True, help="Root directory to scan")
+    p_scan.add_argument("--format", default="lm_eval", choices=["lm_eval", "json"], help="Result format (default: lm_eval)")
+    p_scan.add_argument("--prefix", help="Prefix to prepend to model names")
+    p_scan.add_argument("--force", action="store_true", help="Overwrite existing metrics")
+    p_scan.set_defaults(func=cmd_scan)
+
+    # COMPARE
+    p_cmp = subparsers.add_parser("compare", help="Compare metrics between two models")
+    p_cmp.add_argument("--db", required=True)
+    p_cmp.add_argument("--model-a", required=True, help="Baseline model name")
+    p_cmp.add_argument("--model-b", required=True, help="Candidate model name")
+    p_cmp.add_argument("--run", help="Filter to a specific run")
+    p_cmp.add_argument("--family", help="Filter to a specific family")
+    p_cmp.set_defaults(func=cmd_compare)
 
     # GUI
     p_gui = subparsers.add_parser("gui", help="Launch interactive dashboard (like tensorboard)")

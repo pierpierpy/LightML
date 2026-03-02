@@ -22,6 +22,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 
 from lightml.export import export_excel
+from lightml.compare import compare_models
 
 import uvicorn
 
@@ -314,6 +315,29 @@ def create_app(db_path: str) -> FastAPI:
             filename=tmp.name,
             media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         )
+
+    # ── API: Compare two models ───────────
+    @app.get("/api/compare")
+    async def api_compare(
+        request: Request,
+        model_a: str = "",
+        model_b: str = "",
+        run: str | None = None,
+        family: str | None = None,
+    ):
+        if not model_a or not model_b:
+            return JSONResponse({"error": "model_a and model_b are required"}, status_code=400)
+        try:
+            result = compare_models(
+                db=_db(request),
+                model_a=model_a,
+                model_b=model_b,
+                run_name=run,
+                family=family,
+            )
+            return JSONResponse(result.to_dict())
+        except ValueError as e:
+            return JSONResponse({"error": str(e)}, status_code=404)
 
     return app
 

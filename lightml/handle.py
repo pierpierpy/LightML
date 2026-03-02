@@ -65,3 +65,67 @@ class LightMLHandle:
             checkpoint_id=checkpoint_id,
             force=force,
         )
+
+    # ------------------------
+    # BULK METRICS
+    # ------------------------
+
+    def log_metrics(
+        self,
+        model_name: str,
+        metrics: dict[str, dict[str, float]],
+        *,
+        force: bool = False,
+    ) -> dict[str, int]:
+        """Log multiple metrics in one call.
+
+        Args:
+            model_name: Target model.
+            metrics: ``{family: {metric_name: value, ...}, ...}``
+            force: Overwrite existing metrics instead of skipping.
+
+        Returns:
+            ``{"inserted": N, "updated": N, "skipped": N}``
+        """
+        counts = {"inserted": 0, "updated": 0, "skipped": 0}
+        for family, family_metrics in metrics.items():
+            for metric_name, value in family_metrics.items():
+                result = self.log_model_metric(
+                    model_name=model_name,
+                    family=family,
+                    metric_name=metric_name,
+                    value=value,
+                    force=force,
+                )
+                if result == METRIC_INSERTED:
+                    counts["inserted"] += 1
+                elif result == METRIC_UPDATED:
+                    counts["updated"] += 1
+                elif result == METRIC_SKIPPED:
+                    counts["skipped"] += 1
+        return counts
+
+    def log_metrics_flat(
+        self,
+        model_name: str,
+        metrics: dict[str, float],
+        family: str,
+        *,
+        force: bool = False,
+    ) -> dict[str, int]:
+        """Log metrics for a single family.
+
+        Args:
+            model_name: Target model.
+            metrics: ``{metric_name: value, ...}``
+            family: The benchmark family these metrics belong to.
+            force: Overwrite existing metrics instead of skipping.
+
+        Returns:
+            ``{"inserted": N, "updated": N, "skipped": N}``
+        """
+        return self.log_metrics(
+            model_name=model_name,
+            metrics={family: metrics},
+            force=force,
+        )
