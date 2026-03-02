@@ -127,6 +127,7 @@ def create_app(db_path: str) -> FastAPI:
                 for r in _query(db, "SELECT DISTINCT metric_name FROM metrics WHERE family = ? ORDER BY metric_name", (family,))
             ]
         else:
+            # No family filter: use composite keys so same-named metrics across families don't collide
             metric_names = [
                 r["metric_name"]
                 for r in _query(db, "SELECT DISTINCT metric_name FROM metrics ORDER BY metric_name")
@@ -159,17 +160,20 @@ def create_app(db_path: str) -> FastAPI:
 
         # Build metric lookup
         if family:
-            raw_metrics = _query(db, "SELECT model_id, checkpoint_id, metric_name, value FROM metrics WHERE family = ?", (family,))
+            raw_metrics = _query(db, "SELECT model_id, checkpoint_id, family, metric_name, value FROM metrics WHERE family = ?", (family,))
         else:
-            raw_metrics = _query(db, "SELECT model_id, checkpoint_id, metric_name, value FROM metrics")
+            raw_metrics = _query(db, "SELECT model_id, checkpoint_id, family, metric_name, value FROM metrics")
 
         model_metrics: dict[int, dict[str, float]] = {}
         ckpt_metrics: dict[int, dict[str, float]] = {}
         for m in raw_metrics:
+            # When viewing a single family, key = metric_name.
+            # When viewing all families, key = family/metric_name to avoid collisions.
+            key = m["metric_name"] if family else f"{m['family']}/{m['metric_name']}"
             if m["model_id"]:
-                model_metrics.setdefault(m["model_id"], {})[m["metric_name"]] = m["value"]
+                model_metrics.setdefault(m["model_id"], {})[key] = m["value"]
             elif m["checkpoint_id"]:
-                ckpt_metrics.setdefault(m["checkpoint_id"], {})[m["metric_name"]] = m["value"]
+                ckpt_metrics.setdefault(m["checkpoint_id"], {})[key] = m["value"]
 
         rows = []
         for mdl in model_rows:

@@ -10,15 +10,15 @@ Used by:
 from __future__ import annotations
 
 import sqlite3
-from dataclasses import dataclass, field
+
+from pydantic import BaseModel, model_validator
 
 
 # ─────────────────────────────────────────────
 # Data structures
 # ─────────────────────────────────────────────
 
-@dataclass
-class MetricDelta:
+class MetricDelta(BaseModel):
     """Single metric comparison between two models."""
     family: str
     metric_name: str
@@ -27,20 +27,21 @@ class MetricDelta:
     delta: float | None = None        # B − A
     pct_change: float | None = None   # (B − A) / A * 100
 
-    def __post_init__(self):
+    @model_validator(mode="after")
+    def _compute_delta(self) -> "MetricDelta":
         if self.value_a is not None and self.value_b is not None:
             self.delta = round(self.value_b - self.value_a, 4)
             if self.value_a != 0:
                 self.pct_change = round(self.delta / abs(self.value_a) * 100, 2)
+        return self
 
 
-@dataclass
-class CompareResult:
+class CompareResult(BaseModel):
     """Full comparison between two models."""
     model_a: str
     model_b: str
     run_name: str | None
-    deltas: list[MetricDelta] = field(default_factory=list)
+    deltas: list[MetricDelta] = []
 
     # ── convenience helpers ───────────────────
 

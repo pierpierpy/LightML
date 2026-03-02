@@ -239,7 +239,7 @@ thead th:hover { background: #374151; color: #e0e0e0; }
 thead th.sorted-asc::after { content: ' ▲'; font-size: 9px; color: #60a5fa; }
 thead th.sorted-desc::after { content: ' ▼'; font-size: 9px; color: #60a5fa; }
 
-thead th:first-child {
+thead th:nth-child(2) {
     text-align: left;
     position: sticky;
     left: 0;
@@ -268,7 +268,7 @@ tbody tr:hover td { background: rgba(59, 130, 246, 0.06); }
 tbody tr:nth-child(even) td { background: rgba(55, 65, 81, 0.15); }
 tbody tr:hover:nth-child(even) td { background: rgba(59, 130, 246, 0.08); }
 
-tbody td:first-child {
+tbody td:nth-child(2) {
     text-align: left;
     font-weight: 600;
     position: sticky;
@@ -276,8 +276,8 @@ tbody td:first-child {
     background: rgba(20, 20, 35, 0.98);
     z-index: 5;
 }
-tbody tr:nth-child(even) td:first-child { background: rgba(25, 25, 40, 0.98); }
-tbody tr:hover td:first-child { background: rgba(30, 40, 60, 0.98); }
+tbody tr:nth-child(even) td:nth-child(2) { background: rgba(25, 25, 40, 0.98); }
+tbody tr:hover td:nth-child(2) { background: rgba(30, 40, 60, 0.98); }
 
 /* Cell coloring */
 .cell-best { color: #34d399; font-weight: 700; background: rgba(16, 185, 129, 0.12) !important; }
@@ -422,13 +422,23 @@ tbody tr:hover td:first-child { background: rgba(30, 40, 60, 0.98); }
 }
 .graph-tooltip .gt-close:hover { background: #4b5563; color: #fff; }
 
-/* Graph search */
+/* Graph controls box */
 .graph-search {
     position: absolute;
     top: 12px;
     left: 12px;
     z-index: 50;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: rgba(17, 24, 39, 0.85);
+    backdrop-filter: blur(8px);
+    border: 1px solid #374151;
+    border-radius: 10px;
+    padding: 6px 14px;
 }
+.graph-search .search-box { margin: 0; }
+.graph-search .toggle-label { white-space: nowrap; }
 
 /* ============================== CELL TOOLTIP ============================== */
 .cell-tooltip {
@@ -504,8 +514,11 @@ tbody tr:hover td:first-child { background: rgba(30, 40, 60, 0.98); }
 .selection-bar .sel-btn.primary { border-color: #3b82f6; color: #93c5fd; }
 .selection-bar .sel-btn.primary:hover { background: #1e3a5f; }
 
-/* Selection checkbox in table */
-.sel-cb { width: 16px; height: 16px; accent-color: #3b82f6; cursor: pointer; }
+/* Selection checkbox in table — collapse column to content */
+.sel-th, .sel-td { width: 1px; white-space: nowrap; padding: 4px 6px !important; text-align: center; }
+.sel-th { cursor: default; }
+.sel-th:hover { background: #1f2937 !important; }
+.sel-cb { width: 14px; height: 14px; accent-color: #3b82f6; cursor: pointer; vertical-align: middle; }
 tr.row-selected { background: rgba(59, 130, 246, 0.12) !important; }
 tr.row-selected td:first-child { border-left: 3px solid #3b82f6; }
 
@@ -586,6 +599,10 @@ tr.row-selected td:first-child { border-left: 3px solid #3b82f6; }
     <div id="graphView">
         <div class="graph-search">
             <input class="search-box" type="text" id="graphSearchBox" placeholder="Search nodes..." oninput="filterGraphNodes()">
+            <label class="toggle-label">
+                <input type="checkbox" id="graphShowCheckpoints" onchange="if(GRAPH) renderGraph(GRAPH);">
+                Show checkpoints
+            </label>
         </div>
         <svg id="graphSvg"></svg>
         <div class="graph-tooltip" id="graphTooltip"></div>
@@ -751,10 +768,12 @@ function renderTable() {
     if (activeFamily) {
         families = [{ name: activeFamily, metrics: TABLE.metric_names }];
     } else {
+        // Build from DATA.metrics with composite keys (family/metric_name)
+        // to match the server-side keying
         const fm = {};
         for (const m of DATA.metrics) {
             if (!fm[m.family]) fm[m.family] = new Set();
-            fm[m.family].add(m.metric_name);
+            fm[m.family].add(`${m.family}/${m.metric_name}`);
         }
         families = Object.entries(fm).map(([name, mset]) => ({
             name,
@@ -812,7 +831,9 @@ function renderTable() {
     for (const f of families) {
         for (const m of f.metrics) {
             const sortCls = sortCol === m ? (sortDir === 'asc' ? 'sorted-asc' : 'sorted-desc') : '';
-            html += `<th class="${sortCls}" onclick="toggleSort('${esc(m)}')">${esc(m)}</th>`;
+            // Display only metric name (strip family/ prefix if composite key)
+            const displayName = m.includes('/') ? m.split('/').slice(1).join('/') : m;
+            html += `<th class="${sortCls}" onclick="toggleSort('${esc(m)}')">${esc(displayName)}</th>`;
         }
     }
     html += '</tr></thead><tbody>';
@@ -821,7 +842,7 @@ function renderTable() {
         const isSelected = selectedModels.has(r.name);
         html += `<tr class="${isSelected ? 'row-selected' : ''}"`;
         html += ` data-model-name="${esc(r.name)}">`;
-        html += `<td><input type="checkbox" class="sel-cb" ${isSelected ? 'checked' : ''} onchange="toggleModelSelection('${esc(r.name)}', this.checked)"></td>`;
+        html += `<td class="sel-td"><input type="checkbox" class="sel-cb" ${isSelected ? 'checked' : ''} onchange="toggleModelSelection('${esc(r.name)}', this.checked)"></td>`;
         const badge = r.type === 'model'
             ? '<span class="badge badge-model">M</span>'
             : '<span class="badge badge-ckpt">C</span>';
@@ -1073,8 +1094,16 @@ function renderGraph(data) {
     // Preserve the search + tooltip elements, clear only the SVG
     svgEl.innerHTML = '';
 
-    const nodes = data.nodes;
-    const links = data.links;
+    const showCkpt = document.getElementById('graphShowCheckpoints').checked;
+
+    // Filter out checkpoints unless the toggle is on
+    const nodes = showCkpt ? data.nodes : data.nodes.filter(n => n.type !== 'checkpoint');
+    const nodeIds = new Set(nodes.map(n => n.id));
+    const links = data.links.filter(l => {
+        const src = typeof l.source === 'object' ? l.source.id : l.source;
+        const tgt = typeof l.target === 'object' ? l.target.id : l.target;
+        return nodeIds.has(src) && nodeIds.has(tgt);
+    });
 
     if (!nodes.length) {
         svgEl.outerHTML = `<div class="empty-state" style="padding-top:120px;">
@@ -1289,7 +1318,6 @@ function showGraphTooltip(e, d, tooltip, container, locked) {
         ${d.run ? `<span style="color:#6b7280;font-size:10px;margin-left:8px;">run: ${esc(d.run)}</span>` : ''}
         ${d.parent ? `<div style="color:#a78bfa;font-size:11px;margin-top:4px;">↳ parent: ${esc(d.parent)}</div>` : ''}
         ${d.path ? `<div class="gt-path">${esc(d.path)}</div>` : ''}
-        ${d.score > 0 ? `<div style="color:#9ca3af;font-size:11px;">Avg score: <b style="color:#60a5fa;">${d.score.toFixed(1)}</b></div>` : ''}
         ${metricsHtml}
     `);
 

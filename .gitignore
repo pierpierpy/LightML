@@ -12,3 +12,4 @@ lightml.egg-info/*
 uv.lock
 .hypothesis/unicode_data/13.0.0/charmap.json.gz
 examples/Experiments/*
+ROADMAP.md
