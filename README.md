@@ -26,9 +26,16 @@ lightml init --path ./my_registry --name main
 - [Core Concepts](#core-concepts)
 - [Python API Reference](#python-api-reference)
   - [LightMLHandle](#lightmlhandle)
+  - [Bulk metric logging](#bulk-metric-logging)
   - [Metric deduplication](#metric-deduplication)
+  - [Compare models](#compare-models)
+  - [Auto-import (scan)](#auto-import-scan)
 - [CLI Reference](#cli-reference)
 - [Dashboard (GUI)](#dashboard-gui)
+  - [Table View](#table-view)
+  - [Graph View](#graph-view)
+  - [Model Selection & Compare](#model-selection--compare)
+  - [Excel Export](#excel-export-1)
 - [Excel Export](#excel-export)
 - [Walkthrough: lm_eval pipeline](#walkthrough-lm_eval-pipeline)
   - [Step 1 — Configure](#step-1--configure)
@@ -230,6 +237,99 @@ handle.log_checkpoint_metric(
 )
 ```
 
+### Bulk Metric Logging
+
+Instead of calling `log_model_metric()` once per metric, use `log_metrics()` to log an entire evaluation result in one call:
+
+```python
+# Nested dict: {family: {metric_name: value}}
+counts = handle.log_metrics("llama-sft", {
+    "ENG 5-shot": {"MMLU": 56.2, "ARC": 48.7, "HellaSwag": 71.9},
+    "ITA 0-shot": {"MMLU": 52.8, "HellaSwag": 62.1},
+})
+
+print(counts)  # {"inserted": 5, "updated": 0, "skipped": 0}
+```
+
+For a single family, use the flat variant:
+
+```python
+counts = handle.log_metrics_flat("llama-sft", {
+    "MMLU": 56.2,
+    "ARC": 48.7,
+}, family="ENG 5-shot")
+```
+
+Both methods support `force=True` to overwrite existing metrics, and return a summary dict with insert/update/skip counts.
+
+### Compare Models
+
+Compare two models side-by-side to see per-metric deltas:
+
+```python
+from lightml.compare import compare_models
+
+result = compare_models(
+    db="./registry/main.db",
+    model_a="llama-base",      # baseline
+    model_b="llama-sft",       # candidate
+    run_name="my-experiment",  # optional filter
+    family="ENG 5-shot",       # optional filter
+)
+
+# Convenience properties
+print(f"Improved: {len(result.improved)}")
+print(f"Regressed: {len(result.regressed)}")
+print(f"Unchanged: {len(result.unchanged)}")
+print(f"Missing: {len(result.missing)}")
+
+# Pretty terminal output (color-coded)
+print(result.to_text())
+
+# JSON-serializable dict (for APIs)
+data = result.to_dict()
+```
+
+Each delta contains `family`, `metric_name`, `value_a`, `value_b`, `delta` (B−A), and `pct_change`.
+
+### Auto-import (Scan)
+
+Bulk-import eval results from a directory tree without writing any Python:
+
+```python
+from lightml.scan import scan_and_import
+
+stats = scan_and_import(
+    db="./registry/main.db",
+    run_name="lm-eval-run",
+    path="./eval_results",         # each subfolder = one model
+    format="lm_eval",              # or "json"
+    model_prefix="eval/",          # optional prefix
+    force=False,                   # True = overwrite duplicates
+)
+
+print(f"Models: {stats.models_registered}")
+print(f"Metrics: {stats.metrics_logged}")
+print(f"Skipped: {stats.skipped_dirs}")
+```
+
+**Directory layout expected:**
+```
+eval_results/
+├── model-alpha/
+│   └── results_2026-01-15T10-30-00.json   # lm_eval format
+├── model-beta/
+│   └── results_2026-01-16T09-00-00.json
+└── model-gamma/
+│   └── metrics.json                        # generic JSON format
+```
+
+**Supported formats:**
+| Format | File pattern | Structure |
+|---|---|---|
+| `lm_eval` | `results_*.json` | `{"results": {"task": {"metric": value}}}` |
+| `json` | `metrics*.json` / `*.json` | `{"metric": value}` or `{"family": {"metric": value}}` |
+
 ### Metric Deduplication
 
 LightML prevents accidental duplicate metrics:
@@ -296,6 +396,49 @@ lightml metric-log \
 lightml export --db ./registry/main.db [--output report.xlsx]
 ```
 
+### `scan` — Auto-import eval results
+
+Scan a directory tree and bulk-import models + metrics:
+
+```bash
+lightml scan \
+    --db ./registry/main.db \
+    --run lm-eval-run \
+    --path ./eval_results \
+    --format lm_eval              # or "json"
+    --prefix "eval/"              # optional model name prefix
+    --force                       # optional: overwrite duplicates
+```
+
+Each immediate subdirectory of `--path` is treated as one model.
+
+### `compare` — Compare two models
+
+Print a side-by-side metric delta table:
+
+```bash
+lightml compare \
+    --db ./registry/main.db \
+    --model-a llama-base \
+    --model-b llama-sft \
+    --run my-experiment           # optional
+    --family "ENG 5-shot"         # optional
+```
+
+Output:
+```
+  Compare: llama-base  vs  llama-sft
+  Run: my-experiment
+  ──────────────────────────────────────────────────────────────────────────
+  Family             Metric              A          B          Δ        %
+  ──────────────────────────────────────────────────────────────────────────
+  ENG 5-shot         MMLU            52.10      56.20      +4.10    +7.9%
+  ENG 5-shot         ARC             44.30      48.70      +4.40    +9.9%
+  ENG 5-shot         HellaSwag       69.50      71.90      +2.40    +3.5%
+  ──────────────────────────────────────────────────────────────────────────
+  ✅ 3 improved  ❌ 0 regressed  ➖ 0 unchanged  ❓ 0 missing
+```
+
 ### `gui` — Launch dashboard
 
 ```bash
@@ -315,12 +458,13 @@ lightml gui --db ./registry/main.db
 ### Table View
 
 Pivoted metrics table with:
-- **Family tabs** — one tab per metric family, plus "All Families"
+- **Family tabs** — one tab per metric family, plus "All Families" (properly scoped — same metric name across different families shows distinct values)
 - **Sorting** — click any column header
 - **Search** — filter models by name
 - **Color coding** — best values highlighted in green, worst in red
 - **Checkpoints toggle** — show/hide checkpoint rows
 - **Run filter** — dropdown to isolate a specific run
+- **Model selection** — checkbox column for selecting models
 
 ![Table view](assets/table_view.jpg)
 <!-- GIF: switch between family tabs, sort columns, toggle checkpoints, filter by run -->
@@ -328,15 +472,25 @@ Pivoted metrics table with:
 ### Graph View
 
 D3.js force-directed graph showing model lineage:
-- **Nodes** = models (blue badges) and checkpoints (yellow badges)
-- **Edges** = parent-child relationships
-- **Node size** = proportional to average metric score
-- **Color** = grouped by run
+- **Nodes** = models, colored by run
+- **Edges** = parent → child relationships
+- **Checkpoints hidden by default** — toggle "Show checkpoints" in the control bar to reveal them
 - **Hover** = tooltip with green/red dots showing which benchmarks have been evaluated
+- **Search** — filter nodes by name, path, or run
 - **Drag & zoom** — fully interactive
 
 ![Graph view](assets/graph_view.jpg)
 <!-- GIF: switch to Graph tab, hover over nodes to see tooltips with benchmark dots, drag nodes, zoom in/out -->
+
+### Model Selection & Compare
+
+Select models from either view and compare them side-by-side:
+
+1. **Select**: click checkboxes in the table, or click nodes in the graph — selections sync across both views
+2. **Selection bar**: appears at the top showing count and actions
+3. **Filter table**: click "Filter table" to show only selected models
+4. **Compare**: select exactly 2 models, click "Compare" → a modal shows per-metric deltas with color-coded improvements (green) and regressions (red)
+5. **Clear**: reset selection in both views
 
 ### Excel Export
 
@@ -508,18 +662,25 @@ LightML/
 │
 ├── lightml/                    # Library source
 │   ├── __init__.py
-│   ├── handle.py               # LightMLHandle — main API
+│   ├── handle.py               # LightMLHandle — main API (incl. bulk log_metrics)
 │   ├── registry.py             # Run & model registration logic
 │   ├── checkpoints.py          # Checkpoint registration
 │   ├── metrics.py              # Metric logging + deduplication
 │   ├── database.py             # SQLite schema initialization
 │   ├── export.py               # Excel export engine
-│   ├── gui.py                  # FastAPI dashboard server
+│   ├── compare.py              # Model comparison (Pydantic models + compare_models)
+│   ├── scan.py                 # Auto-import from eval result directories
+│   ├── gui.py                  # FastAPI dashboard server + /api/compare
 │   ├── cli.py                  # CLI entry point (lightml command)
 │   ├── models/                 # Pydantic schemas
 │   ├── templates/
 │   │   └── dashboard.html      # Single-file SPA dashboard
 │   └── tests/
+│       ├── test_bugfix.py       # Core regression tests (41 tests)
+│       ├── test_compare.py      # Compare feature tests (15 tests)
+│       ├── test_scan.py         # Scan / auto-import tests (17 tests)
+│       ├── test_bulk.py         # Bulk metric API tests (15 tests)
+│       └── conftest.py          # Shared fixtures
 │
 ├── examples/
 │   └── lm_eval/                # End-to-end evaluation example
