@@ -835,7 +835,7 @@ function formatVal(v) {
     if (v == null) return '—';
     if (v > 0 && v <= 1) return (v * 100).toFixed(2) + '%';
     if (Number.isInteger(v)) return v.toString();
-    return v.toFixed(4);
+    return v.toFixed(2);
 }
 
 function esc(s) {
@@ -996,7 +996,7 @@ function renderGraph(data) {
         .force("link", d3.forceLink(links).id(d => d.id).distance(150).strength(0.3))
         .force("charge", d3.forceManyBody().strength(-300))
         .force("center", d3.forceCenter(width / 2, height / 2))
-        .force("collision", d3.forceCollide().radius(50))
+        .force("collision", d3.forceCollide().radius(30))
         .force("y", d3.forceY(d => 80 + d.level * levelHeight).strength(0.1))
         .alphaDecay(0.02)
         .velocityDecay(0.4);
@@ -1015,10 +1015,7 @@ function renderGraph(data) {
     // Node circles — radius based on score, color by group
     node.append("circle")
         .attr("class", "node-circle")
-        .attr("r", d => {
-            if (d.type === 'checkpoint') return 12;
-            return 20 + (d.score > 0 ? d.score / 10 : 0);
-        })
+        .attr("r", 10)
         .attr("fill", d => groupColors[d.group] || NEUTRAL_COLOR)
         .attr("stroke", "#fff")
         .attr("stroke-width", 2);
@@ -1026,10 +1023,7 @@ function renderGraph(data) {
     // Labels below node
     node.append("text")
         .attr("class", "node-label")
-        .attr("dy", d => {
-            const r = d.type === 'checkpoint' ? 12 : 20 + (d.score > 0 ? d.score / 10 : 0);
-            return r + 15;
-        })
+        .attr("dy", 24)
         .attr("text-anchor", "middle")
         .text(d => d.id.length > 25 ? d.id.slice(0, 22) + '…' : d.id);
 

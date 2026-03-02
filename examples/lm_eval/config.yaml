@@ -1,6 +1,6 @@
 # ── LightML settings ──────────────────────────────
-db:        /path/to/your/registry.db    # LightML database
-run_name:  my-eval-run                  # Experiment name (becomes the model name too)
+db:        /home/pdipasquale/registry/main.db    # LightML database
+run_name:  run1                  # Experiment name (becomes the model name too)
 
 # ── Model to evaluate ────────────────────────────
 model_path: Fastweb/FastwebMIIA-7B      # HuggingFace model id or local path

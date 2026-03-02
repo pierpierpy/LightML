@@ -9,7 +9,7 @@ pip install -e .
 lightml init --path ./my_registry --name main
 ```
 
-![Dashboard overview](docs/gifs/dashboard_overview.gif)
+![Dashboard overview](assets/dashboard_overview.jpg)
 <!-- GIF: open the dashboard, show the table view with models + metrics, click a few column headers to sort -->
 
 ---
@@ -122,7 +122,7 @@ lightml gui --db ./my_registry/main.db --port 5050
 
 Open `http://localhost:5050` in your browser.
 
-![Quick start dashboard](docs/gifs/quick_start_gui.gif)
+![Quick start dashboard](assets/quick_start_gui.gif)
 <!-- GIF: run `lightml gui`, browser opens, show the table with gpt2-eval metrics -->
 
 ### 4. Export to Excel
@@ -322,7 +322,7 @@ Pivoted metrics table with:
 - **Checkpoints toggle** — show/hide checkpoint rows
 - **Run filter** — dropdown to isolate a specific run
 
-![Table view](docs/gifs/table_view.gif)
+![Table view](assets/table_view.jpg)
 <!-- GIF: switch between family tabs, sort columns, toggle checkpoints, filter by run -->
 
 ### Graph View
@@ -335,7 +335,7 @@ D3.js force-directed graph showing model lineage:
 - **Hover** = tooltip with green/red dots showing which benchmarks have been evaluated
 - **Drag & zoom** — fully interactive
 
-![Graph view](docs/gifs/graph_view.gif)
+![Graph view](assets/graph_view.jpg)
 <!-- GIF: switch to Graph tab, hover over nodes to see tooltips with benchmark dots, drag nodes, zoom in/out -->
 
 ### Excel Export
@@ -395,7 +395,7 @@ num_gpus:   1
 
 Every field is explained inline. The key LightML fields are `db` (path to registry) and `run_name` (experiment name).
 
-![Config editing](docs/gifs/step1_config.gif)
+![Config editing](assets/step1_config.gif)
 <!-- GIF: open config.yaml, edit db path and model_path, save -->
 
 ### Step 2 — Run evaluation
@@ -428,7 +428,7 @@ handle.log_model_metric(
 )
 ```
 
-![Running evaluation](docs/gifs/step2_run_eval.gif)
+![Running evaluation](assets/step2_run_eval.gif)
 <!-- GIF: terminal running `python run_eval.py`, show the output with benchmark progress and "✓ logged" messages -->
 
 ### Step 3 — Explore in dashboard
@@ -437,9 +437,6 @@ handle.log_model_metric(
 lightml gui --db ./my_registry/main.db
 ```
 
-![Dashboard exploration](docs/gifs/step3_dashboard.gif)
-<!-- GIF: open browser, show Table view with all metrics from the run, switch to Graph view, hover a node to see benchmark dots -->
-
 ### Step 4 — Export report
 
 Click **⬇ Excel** in the dashboard header, or:
@@ -447,9 +444,6 @@ Click **⬇ Excel** in the dashboard header, or:
 ```bash
 lightml export --db ./my_registry/main.db
 ```
-
-![Excel export](docs/gifs/step4_export.gif)
-<!-- GIF: click Excel button in dashboard, open the downloaded .xlsx in a spreadsheet app showing color-scaled metrics -->
 
 ---
 
@@ -535,21 +529,3 @@ LightML/
 └── docs/
     └── gifs/                   # GIF recordings for README
 ```
-
----
-
-## GIF Recording Checklist
-
-Record these GIFs and place them in `docs/gifs/`:
-
-| Filename | What to record |
-|---|---|
-| `dashboard_overview.gif` | Open dashboard, pan around table, show it's alive |
-| `quick_start_gui.gif` | After quick-start: run `lightml gui`, show table with gpt2 metrics |
-| `table_view.gif` | Switch family tabs, sort columns, toggle checkpoints, filter runs |
-| `graph_view.gif` | Switch to Graph, hover nodes (benchmark dots tooltip), drag, zoom |
-| `step1_config.gif` | Edit config.yaml — set db path, model, benchmarks |
-| `step2_run_eval.gif` | Terminal: `python run_eval.py` with benchmark output + logged messages |
-| `step3_dashboard.gif` | After eval: dashboard showing all logged metrics, then graph view |
-| `step4_export.gif` | Click Excel button, open the downloaded .xlsx |
-
