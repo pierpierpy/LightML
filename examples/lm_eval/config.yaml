@@ -6,8 +6,8 @@ run_name:  run1                  # Experiment name (becomes the model name too)
 model_path: Fastweb/FastwebMIIA-7B      # HuggingFace model id or local path
 
 # ── Evaluation matrix ────────────────────────────
-lang:       [ita, eng]                  # Languages: ita, eng, or both
-benchmarks: [hellaswag]                 # Benchmarks: hellaswag, mmlu, arc
+lang:       [eng]                  # Languages: ita, eng, or both
+benchmarks: [hellaswag,mmlu,arc]                 # Benchmarks: hellaswag, mmlu, arc
 shots:      [0, 5]                      # Few-shot settings
 num_gpus:   1                           # 1 = single GPU, >1 = accelerate multi-GPU
 
