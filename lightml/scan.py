@@ -17,20 +17,9 @@ from __future__ import annotations
 
 import json
 import os
-from dataclasses import dataclass, field
 from pathlib import Path
 
-
-# ─────────────────────────────────────────────
-# Result type
-# ─────────────────────────────────────────────
-
-@dataclass
-class ScanStats:
-    models_registered: int = 0
-    metrics_logged: int = 0
-    skipped_dirs: list[str] = field(default_factory=list)
-    errors: list[str] = field(default_factory=list)
+from lightml.models.scan import ScanStats  # noqa: F401
 
 
 # ─────────────────────────────────────────────

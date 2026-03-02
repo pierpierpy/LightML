@@ -39,7 +39,7 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["lightml*"]
+include = ["lightml*", "server*"]
 
 [tool.pytest.ini_options]
 testpaths = ["lightml/tests"]

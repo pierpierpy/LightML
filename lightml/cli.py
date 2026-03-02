@@ -132,7 +132,7 @@ def cmd_scan(args):
 
 
 def cmd_gui(args):
-    from lightml.gui import launch
+    from server.main import launch
     launch(db_path=args.db, host=args.host, port=args.port)
 
 
