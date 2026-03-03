@@ -2,9 +2,7 @@
 
 **Lightweight experiment tracking for LLM evaluation.**
 
-Three days into your experiment sprint: models scattered across five directories, evaluation results in a notebook you can't find, and that one promising checkpoint you forgot to save. Sound familiar? LightML is a zero-config experiment tracker that turns that mess into structured, searchable, exportable knowledge -- in four lines of Python.
-
-LightML is a zero-config, SQLite-backed registry for tracking models, checkpoints, and metrics across evaluation runs. No servers to deploy, no MLflow overhead — just a single `.db` file that becomes your source of truth.
+*Three days into your experiment sprint: models scattered across five directories, evaluation results in a notebook you can't find, and that one promising checkpoint you forgot to save. Sound familiar? LightML is a zero-config experiment tracker that turns that mess into structured, searchable, exportable knowledge -- in four lines of Python.*
 
 ```
 pip install light-ml-registry
