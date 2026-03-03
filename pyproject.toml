@@ -1,6 +1,6 @@
 [project]
 name = "light-ml-registry"
-version = "1.0.3"
+version = "1.0.4"
 description = "Lightweight model registry with experiment tracking and dynamic Excel export"
 authors = [{ name = "Pier" }]
 readme = "README.md"
