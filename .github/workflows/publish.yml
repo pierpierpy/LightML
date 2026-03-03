@@ -1,0 +1,71 @@
+name: Publish to PyPI
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: "Version bump type"
+        required: true
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+        default: patch
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install build tools
+        run: pip install build
+
+      - name: Bump version
+        run: |
+          # Read current version from pyproject.toml
+          CURRENT=$(python -c "
+          import re, pathlib
+          text = pathlib.Path('pyproject.toml').read_text()
+          print(re.search(r'version\s*=\s*\"(.+?)\"', text).group(1))
+          ")
+          echo "Current version: $CURRENT"
+
+          # Split and bump
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT"
+          case "${{ inputs.bump }}" in
+            major) MAJOR=$((MAJOR+1)); MINOR=0; PATCH=0 ;;
+            minor) MINOR=$((MINOR+1)); PATCH=0 ;;
+            patch) PATCH=$((PATCH+1)) ;;
+          esac
+          NEW="$MAJOR.$MINOR.$PATCH"
+          echo "New version: $NEW"
+
+          # Update pyproject.toml
+          sed -i "s/version = \"$CURRENT\"/version = \"$NEW\"/" pyproject.toml
+
+          # Commit version bump
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git add pyproject.toml
+          git commit -m "release: v$NEW"
+          git tag "v$NEW"
+          git push origin HEAD --tags
+
+          echo "VERSION=$NEW" >> "$GITHUB_ENV"
+
+      - name: Build package
+        run: python -m build
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
