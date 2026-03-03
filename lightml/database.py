@@ -115,3 +115,82 @@ def initialize_database(registry_path: str, metrics_schema, db_name: str) -> Pat
         conn.commit()
 
     return db_file
+
+
+# ─────────────────────────────────────────────
+# DELETE
+# ─────────────────────────────────────────────
+
+def delete_model(db: str, model_name: str):
+    """Delete a model and all its related data (checkpoints, metrics, symlink).
+
+    The DB schema uses ``ON DELETE CASCADE`` on foreign keys, so deleting
+    the model row automatically removes associated checkpoints and their
+    metrics.  Model-level metrics are also cascade-deleted.
+
+    Args:
+        db: Path to the SQLite database.
+        model_name: Exact name of the model to delete.
+
+    Returns:
+        DeleteResult with counts of deleted rows.
+
+    Raises:
+        ValueError: If the model doesn't exist.
+    """
+    from lightml.models.delete import DeleteResult
+
+    with sqlite3.connect(db) as conn:
+        conn.execute("PRAGMA foreign_keys = ON;")
+
+        # ── Look up model ──
+        row = conn.execute(
+            "SELECT id FROM model WHERE model_name = ?;",
+            (model_name,),
+        ).fetchone()
+
+        if row is None:
+            raise ValueError(f"Model '{model_name}' not found in database.")
+
+        model_id = row[0]
+
+        # ── Count what will be deleted (before cascade) ──
+        checkpoint_ids = conn.execute(
+            "SELECT id FROM checkpoint WHERE model_id = ?;",
+            (model_id,),
+        ).fetchall()
+        n_checkpoints = len(checkpoint_ids)
+
+        # Metrics: model-level + checkpoint-level
+        n_metrics_model = conn.execute(
+            "SELECT COUNT(*) FROM metrics WHERE model_id = ?;",
+            (model_id,),
+        ).fetchone()[0]
+
+        n_metrics_ckpt = 0
+        if checkpoint_ids:
+            placeholders = ",".join("?" for _ in checkpoint_ids)
+            ids = [c[0] for c in checkpoint_ids]
+            n_metrics_ckpt = conn.execute(
+                f"SELECT COUNT(*) FROM metrics WHERE checkpoint_id IN ({placeholders});",
+                ids,
+            ).fetchone()[0]
+
+        n_metrics = n_metrics_model + n_metrics_ckpt
+
+        # ── Delete (cascade handles checkpoints + metrics) ──
+        conn.execute("DELETE FROM model WHERE id = ?;", (model_id,))
+        conn.commit()
+
+        # ── Remove symlink if it exists ──
+        registry_root = Path(db).parent
+        link_path = registry_root / "models" / model_name
+        if link_path.is_symlink() or link_path.exists():
+            link_path.unlink(missing_ok=True)
+
+    return DeleteResult(
+        model_name=model_name,
+        model_id=model_id,
+        checkpoints_deleted=n_checkpoints,
+        metrics_deleted=n_metrics,
+    )

@@ -1,6 +1,8 @@
 from lightml.registry import register_model, create_run
 from lightml.checkpoints import register_checkpoint, find_checkpoint
 from lightml.metrics import add_metric, METRIC_INSERTED, METRIC_UPDATED, METRIC_SKIPPED
+from lightml.database import delete_model as _delete_model
+from lightml.models.delete import DeleteResult
 
 
 class LightMLHandle:
@@ -147,3 +149,11 @@ class LightMLHandle:
             metrics={family: metrics},
             force=force,
         )
+
+    # ------------------------
+    # DELETE
+    # ------------------------
+
+    def delete_model(self, model_name: str) -> DeleteResult:
+        """Delete a model and all its checkpoints, metrics, and symlinks."""
+        return _delete_model(db=self.db, model_name=model_name)

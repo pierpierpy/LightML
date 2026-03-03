@@ -1,9 +1,9 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Request, HTTPException
 from lightml.registry import initialize_registry
 from lightml.models.registry import RegistryInit
-from fastapi import APIRouter
 from lightml.registry import register_model
 from lightml.models.registry import ModelCreate
+from lightml.database import delete_model
 
 router = APIRouter()
 
@@ -20,3 +20,18 @@ async def register_model_route(model: ModelCreate):
         return {"status": "ok", "model_name": model.model_name}
     else:
         return {"status": "error"}
+
+
+@router.delete("/api/models/{model_name}", tags=["models"])
+async def delete_model_route(model_name: str, request: Request):
+    db = request.app.state.db_path
+    try:
+        result = delete_model(db=db, model_name=model_name)
+        return {
+            "status": "ok",
+            "model_name": result.model_name,
+            "checkpoints_deleted": result.checkpoints_deleted,
+            "metrics_deleted": result.metrics_deleted,
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))

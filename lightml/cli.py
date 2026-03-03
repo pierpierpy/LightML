@@ -99,6 +99,13 @@ def cmd_export(args):
     export_excel(db_path, output)
 
 
+def cmd_model_delete(args):
+    from lightml.database import delete_model
+
+    result = delete_model(db=args.db, model_name=args.name)
+    print(result.to_text())
+
+
 def cmd_compare(args):
     result = compare_models(
         db=args.db,
@@ -160,6 +167,12 @@ def main():
     p_model.add_argument("--path", required=True)
     p_model.add_argument("--parent")
     p_model.set_defaults(func=cmd_model_register)
+
+    # MODEL DELETE
+    p_mdel = subparsers.add_parser("model-delete", help="Delete a model and all related data")
+    p_mdel.add_argument("--db", required=True)
+    p_mdel.add_argument("--name", required=True, help="Model name to delete")
+    p_mdel.set_defaults(func=cmd_model_delete)
 
     # CHECKPOINT REGISTER
     p_ckpt = subparsers.add_parser("checkpoint-register")
