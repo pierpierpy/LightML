@@ -61,8 +61,10 @@ def two_model_registry():
         create_run(db=db_path, run_name="run1")
 
         h = LightMLHandle(db=db_path, run_name="run1")
-        h.register_model(model_name="model_a", path=tmp)
-        h.register_model(model_name="model_b", path=tmp)
+        path_a = Path(tmp) / "model_a"; path_a.mkdir()
+        path_b = Path(tmp) / "model_b"; path_b.mkdir()
+        h.register_model(model_name="model_a", path=str(path_a))
+        h.register_model(model_name="model_b", path=str(path_b))
 
         h.log_model_metric("model_a", "bench", "acc", 0.80)
         h.log_model_metric("model_a", "bench", "f1", 0.75)

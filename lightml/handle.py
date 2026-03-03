@@ -19,13 +19,16 @@ class LightMLHandle:
     # MODEL
     # ------------------------
 
-    def register_model(self, model_name: str, path: str, parent_name: str | None = None):
+    def register_model(self, model_name: str, path: str,
+                       parent_name: str | None = None,
+                       parent_id: int | None = None):
         return register_model(
             db=self.db,
             run_name=self.run_name,
             model_name=model_name,
             path=path,
             parent_name=parent_name,
+            parent_id=parent_id,
         )
 
     # ------------------------

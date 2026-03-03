@@ -23,6 +23,7 @@ This file consolidates all tests for the metrics registry bugfix:
 import tempfile
 import pytest
 import sqlite3
+import os
 from pathlib import Path
 from lightml.registry import initialize_registry, create_run, register_model
 from lightml.models.registry import RegistryInit
@@ -462,13 +463,16 @@ class TestPreservation:
             create_run(db=str(db_path), run_name="test_run")
             
             handle = LightMLHandle(db=str(db_path), run_name="test_run")
-            parent_id = handle.register_model(model_name="parent_model", path=tmp)
+            import os
+            parent_path = os.path.join(tmp, "parent"); os.makedirs(parent_path)
+            child_path = os.path.join(tmp, "child"); os.makedirs(child_path)
+            parent_id = handle.register_model(model_name="parent_model", path=parent_path)
             
             child_id = register_model(
                 db=str(db_path),
                 run_name="test_run",
                 model_name="child_model",
-                path=tmp,
+                path=child_path,
                 parent_name="parent_model"
             )
             
@@ -497,7 +501,128 @@ class TestPreservation:
             model_id_2 = handle.register_model(model_name="test_model", path=tmp)
             
             assert model_id_1 == model_id_2
-    
+
+    def test_path_dedup_returns_existing_model(self):
+        """
+        If a model with the same path already exists (even with a different name),
+        register_model returns the existing model's ID without creating a duplicate.
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            registry = RegistryInit(
+                registry_path=tmp, registry_name="test_registry",
+                overwrite=True, metrics_schema=[],
+            )
+            db_path = initialize_registry(registry)
+            create_run(db=str(db_path), run_name="test_run")
+
+            handle = LightMLHandle(db=str(db_path), run_name="test_run")
+            model_dir = os.path.join(tmp, "shared_model")
+            os.makedirs(model_dir)
+
+            id_first = handle.register_model(model_name="MIIA14B-BASE", path=model_dir)
+            id_second = handle.register_model(model_name="ba10400", path=model_dir)
+
+            # Same path → same id, no duplicate
+            assert id_first == id_second
+
+            # Only one model row in DB
+            import sqlite3
+            with sqlite3.connect(str(db_path)) as conn:
+                count = conn.execute("SELECT COUNT(*) FROM model").fetchone()[0]
+            assert count == 1
+
+    def test_path_dedup_different_paths_are_separate(self):
+        """
+        Models with different paths are registered as separate entries.
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            registry = RegistryInit(
+                registry_path=tmp, registry_name="test_registry",
+                overwrite=True, metrics_schema=[],
+            )
+            db_path = initialize_registry(registry)
+            create_run(db=str(db_path), run_name="test_run")
+
+            handle = LightMLHandle(db=str(db_path), run_name="test_run")
+            p1 = os.path.join(tmp, "model_a"); os.makedirs(p1)
+            p2 = os.path.join(tmp, "model_b"); os.makedirs(p2)
+
+            id_a = handle.register_model(model_name="model_a", path=p1)
+            id_b = handle.register_model(model_name="model_b", path=p2)
+            assert id_a != id_b
+
+    def test_register_model_with_parent_id(self):
+        """
+        parent_id can be used as alternative to parent_name for linking models.
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            registry = RegistryInit(
+                registry_path=tmp, registry_name="test_registry",
+                overwrite=True, metrics_schema=[],
+            )
+            db_path = initialize_registry(registry)
+            create_run(db=str(db_path), run_name="test_run")
+
+            handle = LightMLHandle(db=str(db_path), run_name="test_run")
+            p_parent = os.path.join(tmp, "parent"); os.makedirs(p_parent)
+            p_child = os.path.join(tmp, "child"); os.makedirs(p_child)
+
+            parent_id = handle.register_model(model_name="base", path=p_parent)
+            child_id = handle.register_model(
+                model_name="finetuned", path=p_child, parent_id=parent_id,
+            )
+
+            assert child_id != parent_id
+
+            # Verify parent_id is set correctly in DB
+            import sqlite3
+            with sqlite3.connect(str(db_path)) as conn:
+                row = conn.execute(
+                    "SELECT parent_id FROM model WHERE id = ?", (child_id,)
+                ).fetchone()
+            assert row[0] == parent_id
+
+    def test_path_dedup_orchestrator_scenario(self):
+        """
+        Simulates the orchestrator scenario: parent already registered as 'MIIA14B-BASE',
+        then orchestrator calls register_model with name='ba10400' but same path.
+        The child should correctly link to the existing parent via parent_id.
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            registry = RegistryInit(
+                registry_path=tmp, registry_name="test_registry",
+                overwrite=True, metrics_schema=[],
+            )
+            db_path = initialize_registry(registry)
+            create_run(db=str(db_path), run_name="test_run")
+
+            handle = LightMLHandle(db=str(db_path), run_name="test_run")
+            base_path = os.path.join(tmp, "ba10400"); os.makedirs(base_path)
+            child_path = os.path.join(tmp, "finetuned"); os.makedirs(child_path)
+
+            # Migration script registered the model as "MIIA14B-BASE"
+            original_id = handle.register_model(model_name="MIIA14B-BASE", path=base_path)
+
+            # Orchestrator tries to register same path under different name
+            parent_id = handle.register_model(model_name="ba10400", path=base_path)
+            assert parent_id == original_id  # path dedup kicks in
+
+            # Child links via parent_id → correctly points to MIIA14B-BASE
+            child_id = handle.register_model(
+                model_name="finetuned-123", path=child_path, parent_id=parent_id,
+            )
+
+            import sqlite3
+            with sqlite3.connect(str(db_path)) as conn:
+                row = conn.execute(
+                    "SELECT parent_id FROM model WHERE id = ?", (child_id,)
+                ).fetchone()
+            assert row[0] == original_id
+
+            # Still only 2 models, not 3
+            count = conn.execute("SELECT COUNT(*) FROM model").fetchone()[0]
+            assert count == 2
+
     # ------------------------------------------------------------------------
     # Requirement 3.4: Checkpoint registration works correctly
     # ------------------------------------------------------------------------

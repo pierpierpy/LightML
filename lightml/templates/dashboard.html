@@ -209,9 +209,11 @@ select:focus, .btn:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0
 /* ============================== TABLE ============================== */
 .table-wrapper {
     border-radius: 12px;
-    overflow: hidden;
+    overflow-x: auto;
+    overflow-y: visible;
     border: 1px solid #2d2d44;
     background: rgba(20, 20, 35, 0.9);
+    max-width: 100%;
 }
 
 table {
@@ -525,6 +527,112 @@ tr.row-selected td:first-child { border-left: 3px solid #3b82f6; }
 /* Graph node selection glow */
 .node-circle.selected { stroke: #3b82f6; stroke-width: 3px; filter: drop-shadow(0 0 6px rgba(59,130,246,0.6)); }
 
+/* ============================== FILTER DROPDOWN ============================== */
+.filter-wrap {
+    position: relative;
+    display: inline-block;
+}
+.filter-btn {
+    background: #1f2937;
+    border: 1px solid #374151;
+    color: #e0e0e0;
+    padding: 5px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+.filter-btn:hover { border-color: #60a5fa; }
+.filter-btn.has-filter { border-color: #3b82f6; background: rgba(59,130,246,0.12); color: #93c5fd; }
+.filter-btn .arrow { font-size: 8px; color: #6b7280; }
+.filter-btn .count {
+    background: #3b82f6;
+    color: #fff;
+    font-size: 9px;
+    padding: 1px 5px;
+    border-radius: 10px;
+    font-weight: 700;
+    min-width: 16px;
+    text-align: center;
+}
+
+.filter-dd {
+    display: none;
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    z-index: 200;
+    background: #1e293b;
+    border: 1px solid #374151;
+    border-radius: 10px;
+    min-width: 240px;
+    max-height: 360px;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.5);
+    overflow: hidden;
+}
+.filter-dd.open { display: block; }
+.filter-dd.right { left: auto; right: 0; }
+
+.filter-dd-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+    border-bottom: 1px solid #2d2d44;
+    flex-wrap: wrap;
+}
+.filter-dd-header .fq-btn {
+    background: #334155;
+    border: 1px solid #475569;
+    color: #cbd5e1;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+.filter-dd-header .fq-btn:hover { background: #475569; color: #fff; }
+.filter-dd-header .fq-btn.active { background: #3b82f6; border-color: #3b82f6; color: #fff; }
+
+.filter-dd-search {
+    width: 100%;
+    background: #0f172a;
+    border: 1px solid #334155;
+    color: #e0e0e0;
+    padding: 5px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    margin-top: 6px;
+}
+.filter-dd-search::placeholder { color: #4b5563; }
+.filter-dd-search:focus { outline: none; border-color: #3b82f6; }
+
+.filter-dd-list {
+    max-height: 260px;
+    overflow-y: auto;
+    padding: 4px 0;
+}
+.filter-dd-list::-webkit-scrollbar { width: 5px; }
+.filter-dd-list::-webkit-scrollbar-thumb { background: #374151; border-radius: 4px; }
+
+.filter-dd-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 12px;
+    font-size: 12px;
+    color: #cbd5e1;
+    cursor: pointer;
+    transition: background 0.1s;
+}
+.filter-dd-item:hover { background: rgba(59,130,246,0.08); }
+.filter-dd-item input { accent-color: #3b82f6; width: 13px; height: 13px; flex-shrink: 0; cursor: pointer; }
+.filter-dd-item .item-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
 /* ============================== RESPONSIVE ============================== */
 @media (max-width: 768px) {
     .header { flex-wrap: wrap; gap: 10px; padding: 10px 16px; }
@@ -576,7 +684,40 @@ tr.row-selected td:first-child { border-left: 3px solid #3b82f6; }
     <!-- Table View -->
     <div id="tableView">
         <div class="toggle-bar">
-            <input class="search-box" type="text" id="searchBox" placeholder="Search models..." oninput="renderTable()">
+            <div class="filter-wrap">
+                <button class="filter-btn" id="familyFilterBtn" onclick="toggleFilterDD('familyDD')">
+                    <span>Families</span>
+                    <span class="count" id="familyFilterCount">0</span>
+                    <span class="arrow">▾</span>
+                </button>
+                <div class="filter-dd" id="familyDD">
+                    <div class="filter-dd-header">
+                        <button class="fq-btn" onclick="filterFamilyAll()">All</button>
+                        <button class="fq-btn" onclick="filterFamilyNone()">None</button>
+                        <button class="fq-btn" onclick="filterFamilyPreset('eng')">eng</button>
+                        <button class="fq-btn" onclick="filterFamilyPreset('ita')">ita</button>
+                        <button class="fq-btn" onclick="filterFamilyPreset('0shot')">0-shot</button>
+                        <button class="fq-btn" onclick="filterFamilyPreset('5shot')">5-shot</button>
+                    </div>
+                    <div class="filter-dd-list" id="familyDDList"></div>
+                </div>
+            </div>
+            <div class="filter-wrap">
+                <button class="filter-btn" id="modelFilterBtn" onclick="toggleFilterDD('modelDD')">
+                    <span>Models</span>
+                    <span class="count" id="modelFilterCount">0</span>
+                    <span class="arrow">▾</span>
+                </button>
+                <div class="filter-dd right" id="modelDD">
+                    <div class="filter-dd-header">
+                        <button class="fq-btn" onclick="filterModelAll()">All</button>
+                        <button class="fq-btn" onclick="filterModelNone()">None</button>
+                        <input class="filter-dd-search" type="text" placeholder="Search models..." oninput="filterModelSearch(this.value)">
+                    </div>
+                    <div class="filter-dd-list" id="modelDDList"></div>
+                </div>
+            </div>
+            <input class="search-box" type="text" id="searchBox" placeholder="Search models..." oninput="renderTable()" style="width:160px;">
             <label class="toggle-label">
                 <input type="checkbox" id="showCheckpoints" onchange="renderTable()">
                 Show checkpoints
@@ -629,6 +770,10 @@ let graphSimulation = null;
 const selectedModels = new Set();
 let filterBySelection = false;
 
+// ── Filter state ─────────────────────────────
+const visibleFamilies = new Set();
+const visibleModels   = new Set();
+
 /* ======================================================================
    VIEW SWITCH
    ====================================================================== */
@@ -654,6 +799,7 @@ async function refresh() {
         document.getElementById('dbBadge').textContent = DATA.db_name;
         populateRuns();
         populateTabs();
+        initFilters();
         renderStats();
         await loadTable();
 
@@ -761,6 +907,8 @@ function renderTable() {
         if (!showCkpt && r.type === 'checkpoint') return false;
         if (search && !r.name.toLowerCase().includes(search)) return false;
         if (filterBySelection && selectedModels.size > 0 && !selectedModels.has(r.name)) return false;
+        // Model filter: hide rows whose model is deselected
+        if (visibleModels.size > 0 && !visibleModels.has(r.name)) return false;
         return true;
     });
 
@@ -772,6 +920,8 @@ function renderTable() {
         // to match the server-side keying
         const fm = {};
         for (const m of DATA.metrics) {
+            // Family filter: skip families that are hidden
+            if (visibleFamilies.size > 0 && !visibleFamilies.has(m.family)) continue;
             if (!fm[m.family]) fm[m.family] = new Set();
             fm[m.family].add(`${m.family}/${m.metric_name}`);
         }
@@ -1349,6 +1499,130 @@ let _autoRefreshId = null;
 function toggleAutoRefresh(sec = 30) {
     if (_autoRefreshId) { clearInterval(_autoRefreshId); _autoRefreshId = null; return; }
     _autoRefreshId = setInterval(refresh, sec * 1000);
+}
+
+/* ======================================================================
+   FILTER DROPDOWNS (families + models)
+   ====================================================================== */
+
+// Close dropdown when clicking outside
+document.addEventListener('click', (e) => {
+    document.querySelectorAll('.filter-dd.open').forEach(dd => {
+        if (!dd.parentElement.contains(e.target)) dd.classList.remove('open');
+    });
+});
+
+function toggleFilterDD(id) {
+    const dd = document.getElementById(id);
+    // Close other dropdowns
+    document.querySelectorAll('.filter-dd.open').forEach(other => {
+        if (other.id !== id) other.classList.remove('open');
+    });
+    dd.classList.toggle('open');
+}
+
+function initFilters() {
+    if (!DATA) return;
+
+    // Init family filter (all visible by default)
+    visibleFamilies.clear();
+    DATA.families.forEach(f => visibleFamilies.add(f));
+    renderFamilyDD();
+
+    // Init model filter (all visible by default)
+    visibleModels.clear();
+    DATA.models.forEach(m => visibleModels.add(m.model_name));
+    renderModelDD();
+}
+
+// ── Family dropdown ──────────────────────────────
+function renderFamilyDD() {
+    const list = document.getElementById('familyDDList');
+    if (!DATA) return;
+    list.innerHTML = DATA.families.map(f => {
+        const checked = visibleFamilies.has(f) ? 'checked' : '';
+        return `<label class="filter-dd-item">
+            <input type="checkbox" ${checked} onchange="toggleFamily('${esc(f)}', this.checked)">
+            <span class="item-label">${esc(f)}</span>
+        </label>`;
+    }).join('');
+    updateFamilyBadge();
+}
+
+function toggleFamily(fam, on) {
+    if (on) visibleFamilies.add(fam); else visibleFamilies.delete(fam);
+    updateFamilyBadge();
+    loadTable();
+}
+
+function filterFamilyAll() {
+    DATA.families.forEach(f => visibleFamilies.add(f));
+    renderFamilyDD(); loadTable();
+}
+
+function filterFamilyNone() {
+    visibleFamilies.clear();
+    renderFamilyDD(); loadTable();
+}
+
+function filterFamilyPreset(keyword) {
+    visibleFamilies.clear();
+    DATA.families.filter(f => f.includes(keyword)).forEach(f => visibleFamilies.add(f));
+    renderFamilyDD(); loadTable();
+}
+
+function updateFamilyBadge() {
+    const total = DATA ? DATA.families.length : 0;
+    const active = visibleFamilies.size;
+    const countEl = document.getElementById('familyFilterCount');
+    const btnEl = document.getElementById('familyFilterBtn');
+    countEl.textContent = `${active}/${total}`;
+    btnEl.classList.toggle('has-filter', active < total);
+}
+
+// ── Model dropdown ───────────────────────────────
+function renderModelDD(searchTerm = '') {
+    const list = document.getElementById('modelDDList');
+    if (!DATA) return;
+    const term = searchTerm.toLowerCase();
+    const filtered = DATA.models.filter(m => !term || m.model_name.toLowerCase().includes(term));
+    list.innerHTML = filtered.map(m => {
+        const checked = visibleModels.has(m.model_name) ? 'checked' : '';
+        return `<label class="filter-dd-item">
+            <input type="checkbox" ${checked} onchange="toggleModel('${esc(m.model_name)}', this.checked)">
+            <span class="item-label">${esc(m.model_name)}</span>
+        </label>`;
+    }).join('');
+    updateModelBadge();
+}
+
+function toggleModel(name, on) {
+    if (on) visibleModels.add(name); else visibleModels.delete(name);
+    updateModelBadge();
+    renderTable();
+}
+
+function filterModelAll() {
+    DATA.models.forEach(m => visibleModels.add(m.model_name));
+    renderModelDD(); renderTable();
+}
+
+function filterModelNone() {
+    visibleModels.clear();
+    renderModelDD(); renderTable();
+}
+
+function filterModelSearch(term) {
+    renderModelDD(term);
+}
+
+function updateModelBadge() {
+    const total = DATA ? DATA.models.length : 0;
+    const active = visibleModels.size;
+    const countEl = document.getElementById('modelFilterCount');
+    const btnEl = document.getElementById('modelFilterBtn');
+    countEl.textContent = `${active}/${total}`;
+    btnEl.classList.toggle('has-filter', active < total);
 }
 </script>
 </body>

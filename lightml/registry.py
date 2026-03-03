@@ -11,11 +11,25 @@ def register_model(db: str,
                    run_name: str,
                    model_name: str,
                    path: str,
-                   parent_name: str | None = None) -> int:
+                   parent_name: str | None = None,
+                   parent_id: int | None = None) -> int:
 
     try:
         with sqlite3.connect(db) as conn:
             conn.execute("PRAGMA foreign_keys = ON;")
+
+            # ------------------------
+            # PATH DEDUP: se esiste già un modello con lo stesso path,
+            # ritorna il suo id senza creare duplicati.
+            # NB: usa abspath (non resolve) per non seguire i symlink.
+            # ------------------------
+            norm_path = os.path.abspath(os.path.expanduser(path))
+            existing = conn.execute(
+                "SELECT id FROM model WHERE path = ?;",
+                (norm_path,),
+            ).fetchone()
+            if existing:
+                return existing[0]
 
             # ------------------------
             # GET RUN ID
@@ -31,16 +45,14 @@ def register_model(db: str,
             run_id = run_row[0]
 
             # ------------------------
-            # RESOLVE PARENT (same run)
+            # RESOLVE PARENT
             # ------------------------
-            parent_id = None
-
-            if parent_name:
+            if parent_id is not None:
+                # parent_id ha priorità su parent_name
+                pass
+            elif parent_name:
                 row = conn.execute(
-                    """
-                    SELECT id FROM model
-WHERE model_name = ?
-                    """,
+                    "SELECT id FROM model WHERE model_name = ?;",
                     (parent_name,),
                 ).fetchone()
 
@@ -59,11 +71,11 @@ WHERE model_name = ?
                 INSERT OR IGNORE INTO model (model_name, path, parent_id, run_id)
                 VALUES (?, ?, ?, ?);
                 """,
-                (model_name, str(path), parent_id, run_id),
+                (model_name, norm_path, parent_id, run_id),
             )
 
             if cursor.rowcount == 0:
-                # già esiste
+                # già esiste (stesso nome+run)
                 row = conn.execute(
                     "SELECT id FROM model WHERE model_name=? AND run_id=?;",
                     (model_name, run_id)

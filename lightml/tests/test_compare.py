@@ -185,8 +185,11 @@ class TestCompareModels:
             create_run(db=db, run_name="r1")
 
             h = LightMLHandle(db=db, run_name="r1")
-            h.register_model(model_name="alpha", path=tmp)
-            h.register_model(model_name="beta", path=tmp)
+            import os
+            pa = os.path.join(tmp, "alpha"); os.makedirs(pa)
+            pb = os.path.join(tmp, "beta"); os.makedirs(pb)
+            h.register_model(model_name="alpha", path=pa)
+            h.register_model(model_name="beta", path=pb)
 
             h.log_model_metric("alpha", "fam", "shared", 0.5)
             h.log_model_metric("alpha", "fam", "only_a", 0.3)

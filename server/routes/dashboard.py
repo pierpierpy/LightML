@@ -258,8 +258,18 @@ async def get_graph(request: Request):
                 "target": m["model_name"],
             })
 
+    # Track seen IDs to handle grid-search duplicates (same model+step, different trials)
+    seen_ckpt_ids: dict[str, int] = {}
+
     for c in checkpoints:
-        ckpt_id = f"{c['model_name']}__step-{c['step']}"
+        base_id = f"{c['model_name']}__step-{c['step']}"
+        if base_id in seen_ckpt_ids:
+            seen_ckpt_ids[base_id] += 1
+            ckpt_id = f"{base_id}__t{seen_ckpt_ids[base_id]}"
+        else:
+            seen_ckpt_ids[base_id] = 1
+            ckpt_id = base_id
+
         metrics = ckpt_metrics.get(c["id"], {})
         vals = [v for v in metrics.values() if isinstance(v, (int, float))]
         avg_score = sum(vals) / len(vals) * 100 if vals else 0

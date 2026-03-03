@@ -138,8 +138,11 @@ class TestBulkIntegration:
             create_run(db=db, run_name="r1")
 
             h = LightMLHandle(db=db, run_name="r1")
-            h.register_model(model_name="base", path=tmp)
-            h.register_model(model_name="tuned", path=tmp)
+            import os
+            pb = os.path.join(tmp, "base"); os.makedirs(pb)
+            pt = os.path.join(tmp, "tuned"); os.makedirs(pt)
+            h.register_model(model_name="base", path=pb)
+            h.register_model(model_name="tuned", path=pt)
 
             h.log_metrics("base", {"bench": {"acc": 0.5, "f1": 0.4}})
             h.log_metrics("tuned", {"bench": {"acc": 0.7, "f1": 0.6}})
