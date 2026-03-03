@@ -5,7 +5,7 @@
 LightML is a zero-config, SQLite-backed registry for tracking models, checkpoints, and metrics across evaluation runs. No servers to deploy, no MLflow overhead — just a single `.db` file that becomes your source of truth.
 
 ```
-pip install -e .
+pip install light-ml-registry
 lightml init --path ./my_registry --name main
 ```
 
@@ -51,7 +51,7 @@ lightml init --path ./my_registry --name main
 
 | Feature | LightML | MLflow | W&B |
 |---|---|---|---|
-| Setup | `pip install -e .` | Server + DB | Cloud signup |
+| Setup | `pip install light-ml-registry` | Server + DB | Cloud signup |
 | Storage | Single SQLite file | Postgres/MySQL | Cloud |
 | Dependencies | 4 packages | 20+ packages | API key required |
 | Dashboard | Built-in (`lightml gui`) | Separate server | Web app |
@@ -64,9 +64,17 @@ LightML is ideal when you need structured experiment tracking without the infras
 
 ## Installation
 
+### From PyPI (recommended)
+
+```bash
+pip install light-ml-registry
+```
+
+### From source (development)
+
 ```bash
 git clone <repo-url> && cd LightML
-pip install -e .
+pip install -e ".[dev]"
 ```
 
 Dependencies (auto-installed):
