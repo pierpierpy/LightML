@@ -906,9 +906,11 @@ function renderTable() {
     let rows = TABLE.rows.filter(r => {
         if (!showCkpt && r.type === 'checkpoint') return false;
         if (search && !r.name.toLowerCase().includes(search)) return false;
-        if (filterBySelection && selectedModels.size > 0 && !selectedModels.has(r.name)) return false;
+        // For checkpoints, match against the parent model_name
+        const matchName = r.type === 'checkpoint' ? (r.model_name || r.name) : r.name;
+        if (filterBySelection && selectedModels.size > 0 && !selectedModels.has(matchName)) return false;
         // Model filter: hide rows whose model is deselected
-        if (visibleModels.size > 0 && !visibleModels.has(r.name)) return false;
+        if (visibleModels.size > 0 && !visibleModels.has(matchName)) return false;
         return true;
     });
 
@@ -1121,6 +1123,10 @@ function clearSelection() {
 function filterToSelected() {
     if (selectedModels.size === 0) return;
     filterBySelection = !filterBySelection;
+    // Auto-enable "Show checkpoints" when filtering so user can see them
+    if (filterBySelection) {
+        document.getElementById('showCheckpoints').checked = true;
+    }
     renderTable();
 }
 

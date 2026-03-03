@@ -1,5 +1,5 @@
 from lightml.registry import register_model, create_run
-from lightml.checkpoints import register_checkpoint
+from lightml.checkpoints import register_checkpoint, find_checkpoint
 from lightml.metrics import add_metric, METRIC_INSERTED, METRIC_UPDATED, METRIC_SKIPPED
 
 
@@ -42,6 +42,21 @@ class LightMLHandle:
             model_name=model_name,
             step=step,
             path=path,
+        )
+
+    def find_checkpoint(self, model_name: str, step: int,
+                        path_hint: str | None = None) -> int | None:
+        """Look up a checkpoint id by model name and step.
+
+        When multiple checkpoints share the same step (grid search),
+        *path_hint* disambiguates by matching against the stored path.
+        """
+        return find_checkpoint(
+            db=self.db,
+            run_name=self.run_name,
+            model_name=model_name,
+            step=step,
+            path_hint=path_hint,
         )
 
     # ------------------------
