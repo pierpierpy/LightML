@@ -97,6 +97,10 @@ from pathlib import Path
 
 def create_model_symlink(db_path: str, run_name: str, model_name: str, model_path: str):
 
+    # Skip symlink for HuggingFace model IDs (not local paths)
+    if not os.path.isabs(model_path) and not os.path.exists(model_path):
+        return
+
     registry_root = Path(db_path).parent
     models_dir = registry_root / "models"
     models_dir.mkdir(exist_ok=True)
