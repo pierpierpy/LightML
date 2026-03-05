@@ -22,7 +22,7 @@ async def register_model_route(model: ModelCreate):
         return {"status": "error"}
 
 
-@router.delete("/api/models/{model_name}", tags=["models"])
+@router.delete("/api/models/{model_name:path}", tags=["models"])
 async def delete_model_route(model_name: str, request: Request):
     db = request.app.state.db_path
     try:
