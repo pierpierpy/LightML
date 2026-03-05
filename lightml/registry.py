@@ -7,6 +7,11 @@ import os
 import json
 
 
+def _is_hf_path(path: str) -> bool:
+    """True if *path* looks like a HuggingFace model ID (e.g. 'vidore/colpali-v1.3')."""
+    return not os.path.isabs(path) and not os.path.exists(path)
+
+
 def register_model(db: str,
                    run_name: str,
                    model_name: str,
@@ -21,9 +26,9 @@ def register_model(db: str,
             # ------------------------
             # PATH DEDUP: se esiste già un modello con lo stesso path,
             # ritorna il suo id senza creare duplicati.
-            # NB: usa abspath (non resolve) per non seguire i symlink.
+            # HF model IDs are stored as-is; local paths are normalised.
             # ------------------------
-            norm_path = os.path.abspath(os.path.expanduser(path))
+            norm_path = path if _is_hf_path(path) else os.path.abspath(os.path.expanduser(path))
             existing = conn.execute(
                 "SELECT id FROM model WHERE path = ?;",
                 (norm_path,),
@@ -98,7 +103,7 @@ from pathlib import Path
 def create_model_symlink(db_path: str, run_name: str, model_name: str, model_path: str):
 
     # Skip symlink for HuggingFace model IDs (not local paths)
-    if not os.path.isabs(model_path) and not os.path.exists(model_path):
+    if _is_hf_path(model_path):
         return
 
     registry_root = Path(db_path).parent

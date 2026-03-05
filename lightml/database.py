@@ -182,11 +182,12 @@ def delete_model(db: str, model_name: str):
         conn.execute("DELETE FROM model WHERE id = ?;", (model_id,))
         conn.commit()
 
-        # ── Remove symlink if it exists ──
-        registry_root = Path(db).parent
-        link_path = registry_root / "models" / model_name
-        if link_path.is_symlink() or link_path.exists():
-            link_path.unlink(missing_ok=True)
+        # ── Remove symlink if it exists (skip for HF-style paths with '/') ──
+        if "/" not in model_name:
+            registry_root = Path(db).parent
+            link_path = registry_root / "models" / model_name
+            if link_path.is_symlink() or link_path.exists():
+                link_path.unlink(missing_ok=True)
 
     return DeleteResult(
         model_name=model_name,
