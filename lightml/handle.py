@@ -3,6 +3,8 @@ from lightml.checkpoints import register_checkpoint, find_checkpoint
 from lightml.metrics import add_metric, METRIC_INSERTED, METRIC_UPDATED, METRIC_SKIPPED
 from lightml.database import delete_model as _delete_model
 from lightml.models.delete import DeleteResult
+from lightml.readers import get_detailed_scores as _get_detailed_scores
+from lightml.stats import compare_models_stats
 
 
 class LightMLHandle:
@@ -159,3 +161,12 @@ class LightMLHandle:
     def delete_model(self, model_name: str) -> DeleteResult:
         """Delete a model and all its checkpoints, metrics, and symlinks."""
         return _delete_model(db=self.db, model_name=model_name)
+
+    def get_detailed_scores(self, model_name, family, metric_name):
+        return _get_detailed_scores(self.db, model_name, self.run_name, family, metric_name)
+
+    def compare_stats(self, model_a, model_b, family, metric_name):
+        
+        scores_a = self.get_detailed_scores(model_a, family, metric_name)
+        scores_b = self.get_detailed_scores(model_b, family, metric_name)
+        return compare_models_stats(scores_a, scores_b)

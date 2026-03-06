@@ -1,7 +1,7 @@
 [project]
 name = "light-ml-registry"
-version = "1.0.8"
-description = "Lightweight model registry with experiment tracking and dynamic Excel export"
+version = "1.1.0.dev0"
+description = "Lightweight model registry with experiment, metrics and checkpoint tracking"
 authors = [{ name = "Pier" }]
 readme = "README.md"
 requires-python = ">=3.12"

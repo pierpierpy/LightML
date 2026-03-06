@@ -14,3 +14,4 @@ uv.lock
 examples/Experiments/*
 ROADMAP.md
 light_ml_registry.egg-info/*
+test/*

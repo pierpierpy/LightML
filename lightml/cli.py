@@ -12,7 +12,59 @@ from lightml.scan import scan_and_import
 # =====================================================
 # COMMANDS
 # =====================================================
+def cmd_stats(args):
+    handle = LightMLHandle(
+        db=args.db,
+        run_name=args.run,
+    )
 
+    result = handle.compare_stats(
+        model_a=args.model_a,
+        model_b=args.model_b,
+        family=args.family,
+        metric_name=args.metric,
+    )
+
+    ct = result["contingency"]
+    mc = result["mcnemar"]
+    bs = result["bootstrap"]
+
+    print(f"\n  Statistical comparison: {args.model_a} vs {args.model_b}")
+    print(f"  Family: {args.family}  Metric: {args.metric}")
+    print(f"  ──────────────────────────────────────────────")
+    print(f"  Both correct:    {ct['both_correct']}")
+    print(f"  Only {args.model_a}: {ct['only_a']}")
+    print(f"  Only {args.model_b}: {ct['only_b']}")
+    print(f"  Both wrong:      {ct['both_wrong']}")
+    print(f"  Discordant:      {ct['n_discordant']}")
+    print(f"  ──────────────────────────────────────────────")
+    print(f"  Mean {args.model_a}: {result['mean_a']:.4f}")
+    print(f"  Mean {args.model_b}: {result['mean_b']:.4f}")
+    print(f"  Delta (A - B):   {bs['delta']:+.4f}")
+    print(f"  95% CI:          [{bs['ci_lower']:+.4f}, {bs['ci_upper']:+.4f}]")
+    print(f"  ──────────────────────────────────────────────")
+    print(f"  McNemar p-value: {mc['p_value']:.6f}")
+
+    if mc["significant"]:
+        winner_name = args.model_a if mc["winner"] == "a" else args.model_b
+        print(f"  Result:          Significant (p < 0.05), {winner_name} is better")
+    else:
+        print(f"  Result:          Not significant")
+    print()
+    
+def cmd_version(args):
+    from importlib.metadata import version
+    v = version("light-ml-registry")
+    print(rf"""
+  _    _       _     _   __  __ _
+ | |  (_) __ _| |__ | |_|  \/  | |
+ | |  | |/ _` | '_ \| __| |\/| | |
+ | |__| | (_| | | | | |_| |  | | |___
+ |____|_|\__, |_| |_|\__|_|  |_|_____|
+         |___/
+                            v{v}
+""")
+    
 def cmd_init(args):
     registry = RegistryInit(
         registry_path=args.path,
@@ -151,7 +203,9 @@ def main():
 
     parser = argparse.ArgumentParser(prog="lightml")
     subparsers = parser.add_subparsers(dest="command")
-
+    # VERSION
+    p_version = subparsers.add_parser("version", help="Show LightML version")
+    p_version.set_defaults(func=cmd_version)
     # INIT
     p_init = subparsers.add_parser("init")
     p_init.add_argument("--path", required=True)
@@ -219,7 +273,15 @@ def main():
     p_cmp.add_argument("--run", help="Filter to a specific run")
     p_cmp.add_argument("--family", help="Filter to a specific family")
     p_cmp.set_defaults(func=cmd_compare)
-
+    # STATS
+    p_stats = subparsers.add_parser("stats", help="Statistical test (McNemar) between two models")
+    p_stats.add_argument("--db", required=True)
+    p_stats.add_argument("--run", required=True)
+    p_stats.add_argument("--model-a", required=True, help="First model name")
+    p_stats.add_argument("--model-b", required=True, help="Second model name")
+    p_stats.add_argument("--family", required=True, help="Metric family")
+    p_stats.add_argument("--metric", required=True, help="Metric name")
+    p_stats.set_defaults(func=cmd_stats)
     # GUI
     p_gui = subparsers.add_parser("gui", help="Launch interactive dashboard (like tensorboard)")
     p_gui.add_argument("--db", required=True, help="Path to the LightML .db file")
