@@ -1,4 +1,5 @@
 import sqlite3
+import json
 
 # Return codes
 METRIC_INSERTED = 1
@@ -11,6 +12,7 @@ def add_metric(
     family: str,
     metric_name: str,
     value: float,
+    scores: list[float] | None = None,
     model_name: str | None = None,
     checkpoint_id: int | None = None,
     run_name: str | None = None,
@@ -118,22 +120,36 @@ def add_metric(
                     "UPDATE metrics SET value = ? WHERE id = ?",
                     (value, existing[0]),
                 )
+                if scores:
+                    metric_id = existing[0]
+                    conn.execute(
+                    """
+                    INSERT OR REPLACE INTO detailed_scores (metric_id, scores, n_samples)
+                    VALUES (?, ?, ?);
+                    """,
+                    (metric_id, json.dumps(scores) , len(scores)),)
                 conn.commit()
                 return METRIC_UPDATED
 
             # ------------------------
             # INSERT METRIC
             # ------------------------
-            conn.execute(
+            cursor = conn.execute(
                 """
                 INSERT INTO metrics (model_id, checkpoint_id, family, metric_name, value)
                 VALUES (?, ?, ?, ?, ?);
                 """,
                 (model_id, checkpoint_id, family, metric_name, value),
             )
-
+            if scores:
+                metric_id = cursor.lastrowid
+                conn.execute(
+                    """
+                    INSERT INTO detailed_scores (metric_id, scores, n_samples)
+                    VALUES (?, ?, ?);
+                    """,
+                    (metric_id, json.dumps(scores), len(scores)),)
             conn.commit()
-
         return METRIC_INSERTED
 
     except Exception as e:

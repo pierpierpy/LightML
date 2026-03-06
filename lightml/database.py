@@ -95,7 +95,16 @@ def initialize_database(registry_path: str, metrics_schema, db_name: str) -> Pat
             )
         );
         """)
-
+        conn.execute("""
+        CREATE TABLE detailed_scores (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                metric_id   INTEGER NOT NULL UNIQUE REFERENCES metrics(id),
+                scores      TEXT NOT NULL,    -- JSON array di float
+                n_samples   INTEGER NOT NULL  -- len(scores), per validazione rapida
+            );
+        
+        
+        """)
         # =========================
         # INSERT METRIC SCHEMA
         # =========================

@@ -12,6 +12,7 @@ async def add_metric_route(metric: mt.MetricCreate):
         family=metric.family,
         metric_name=metric.metric_name,
         value=metric.value,
+        scores= metric.scores,
         run_name=metric.run_name,
         checkpoint_id=metric.checkpoint_id,
     )
