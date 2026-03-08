@@ -7,11 +7,11 @@ from lightml.registry import initialize_registry
 from lightml.models.registry import RegistryInit
 from lightml.compare import compare_models
 from lightml.scan import scan_and_import
-from lightml.readers import get_available_runs, get_models_with_scores, get_metrics_with_scores
 from lightml.readers import (
-        get_available_runs, get_models_with_scores,
-        get_metrics_with_scores, check_detailed_scores_table,
-    )
+    get_available_runs, get_models_with_scores, get_metrics_with_scores,
+    all_models_with_scores, all_metrics_with_scores,
+    check_detailed_scores_table,
+)
 from lightml.database import migrate_database
 
 
@@ -50,26 +50,24 @@ def cmd_stats(args):
     def pick(prompt, options):
         for i, opt in enumerate(options, 1):
             print(f"    {i}. {opt}")
-        choice = int(input(f"\n  {prompt}: ")) - 1
-        return options[choice]
+        while True:
+            try:
+                choice = int(input(f"\n  {prompt}: ")) - 1
+                if 0 <= choice < len(options):
+                    return options[choice]
+                print(f"  Please enter a number between 1 and {len(options)}")
+            except ValueError:
+                print(f"  Please enter a valid number")
 
     db = args.db
 
-    # Run
-    if not args.run:
-        runs = get_available_runs(db)
-        if len(runs) == 1:
-            run = runs[0]
-            print(f"\n  Run: {run}")
-        else:
-            print(f"\n  Available runs:")
-            run = pick("Select run", runs)
-    else:
-        run = args.run
-
-    # Models
+    # Models (cross-run: list all models with detailed scores)
     if not args.model_a or not args.model_b:
-        models = get_models_with_scores(db, run)
+        models = all_models_with_scores(db)
+        if len(models) < 2:
+            print(f"\n  Need at least 2 models with detailed scores to compare.")
+            print(f"  Found: {len(models)}\n")
+            return
         print(f"\n  Models with detailed scores:")
         print(f"\n  Select model A:")
         model_a = pick("Model A", models)
@@ -82,7 +80,7 @@ def cmd_stats(args):
 
     # Metric
     if not args.family or not args.metric:
-        metrics = get_metrics_with_scores(db, run)
+        metrics = all_metrics_with_scores(db)
         labels = [f"{f} / {m}" for f, m in metrics]
         print(f"\n  Available metrics:")
         chosen = pick("Select metric", labels)
@@ -92,8 +90,8 @@ def cmd_stats(args):
         family = args.family
         metric = args.metric
 
-    # Run test
-    handle = LightMLHandle(db=db, run_name=run)
+    # Run test (run_name not needed for cross-run compare)
+    handle = LightMLHandle(db=db)
     result = handle.compare_stats(
         model_a=model_a,
         model_b=model_b,

@@ -4,20 +4,22 @@ from lightml.metrics import add_metric, METRIC_INSERTED, METRIC_UPDATED, METRIC_
 from lightml.database import delete_model as _delete_model
 from lightml.models.delete import DeleteResult
 from lightml.readers import get_detailed_scores as _get_detailed_scores
+from lightml.readers import get_detailed_scores_any_run as _get_detailed_scores_any_run
 from lightml.stats import compare_models_stats
 
 
 class LightMLHandle:
 
-    def __init__(self, db: str, run_name: str):
+    def __init__(self, db: str, run_name: str | None = None):
         self.db = db
         self.run_name = run_name
 
         # crea run se non esiste
-        create_run(
-            db=self.db,
-            run_name=self.run_name
-        )
+        if self.run_name is not None:
+            create_run(
+                db=self.db,
+                run_name=self.run_name
+            )
 
     # ------------------------
     # MODEL
@@ -166,7 +168,6 @@ class LightMLHandle:
         return _get_detailed_scores(self.db, model_name, self.run_name, family, metric_name)
 
     def compare_stats(self, model_a, model_b, family, metric_name):
-        
-        scores_a = self.get_detailed_scores(model_a, family, metric_name)
-        scores_b = self.get_detailed_scores(model_b, family, metric_name)
+        scores_a = _get_detailed_scores_any_run(self.db, model_a, family, metric_name)
+        scores_b = _get_detailed_scores_any_run(self.db, model_b, family, metric_name)
         return compare_models_stats(scores_a, scores_b)

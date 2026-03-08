@@ -25,6 +25,27 @@ def get_detailed_scores(db, model_name, run_name, family, metric_name):
     return json.loads(row[0])
 
 
+def get_detailed_scores_any_run(db, model_name, family, metric_name):
+    with sqlite3.connect(db) as conn:
+        row = conn.execute("""
+            SELECT ds.scores, ds.n_samples
+            FROM detailed_scores ds
+            JOIN metrics m ON ds.metric_id = m.id
+            JOIN model mo ON m.model_id = mo.id
+            WHERE mo.model_name = ?
+              AND m.family = ?
+              AND m.metric_name = ?
+        """, (model_name, family, metric_name)).fetchone()
+
+    if row is None:
+        raise ValueError(
+            f"No detailed scores found for model='{model_name}', "
+            f"family='{family}', metric='{metric_name}'"
+        )
+
+    return json.loads(row[0])
+
+
 def get_metric_value(db, model_name, run_name, family, metric_name):
     with sqlite3.connect(db) as conn:
         row = conn.execute("""
@@ -67,6 +88,18 @@ def get_models_with_scores(db, run_name):
     return [r[0] for r in rows]
 
 
+def all_models_with_scores(db):
+    with sqlite3.connect(db) as conn:
+        rows = conn.execute("""
+            SELECT DISTINCT mo.model_name
+            FROM detailed_scores ds
+            JOIN metrics m ON ds.metric_id = m.id
+            JOIN model mo ON m.model_id = mo.id
+            ORDER BY mo.model_name
+        """).fetchall()
+    return [r[0] for r in rows]
+
+
 def get_metrics_with_scores(db, run_name):
     with sqlite3.connect(db) as conn:
         rows = conn.execute("""
@@ -78,6 +111,17 @@ def get_metrics_with_scores(db, run_name):
             WHERE r.run_name = ?
             ORDER BY m.family, m.metric_name
         """, (run_name,)).fetchall()
+    return [(r[0], r[1]) for r in rows]
+
+
+def all_metrics_with_scores(db):
+    with sqlite3.connect(db) as conn:
+        rows = conn.execute("""
+            SELECT DISTINCT m.family, m.metric_name
+            FROM detailed_scores ds
+            JOIN metrics m ON ds.metric_id = m.id
+            ORDER BY m.family, m.metric_name
+        """).fetchall()
     return [(r[0], r[1]) for r in rows]
 
 
