@@ -204,3 +204,30 @@ def delete_model(db: str, model_name: str):
         checkpoints_deleted=n_checkpoints,
         metrics_deleted=n_metrics,
     )
+    
+def migrate_database(db: str):
+    """Apply pending migrations to an existing database."""
+    with sqlite3.connect(db) as conn:
+        conn.execute("PRAGMA foreign_keys = ON;")
+
+        # Migration 1: add detailed_scores table
+        table_exists = conn.execute("""
+            SELECT COUNT(*) FROM sqlite_master
+            WHERE type='table' AND name='detailed_scores'
+        """).fetchone()[0]
+
+        if not table_exists:
+            conn.execute("""
+                CREATE TABLE detailed_scores (
+                    metric_id   INTEGER NOT NULL PRIMARY KEY,
+                    scores      TEXT NOT NULL,
+                    n_samples   INTEGER NOT NULL,
+                    FOREIGN KEY(metric_id)
+                        REFERENCES metrics(id)
+                        ON DELETE CASCADE
+                );
+            """)
+            conn.commit()
+            return {"detailed_scores": "created"}
+
+        return {"detailed_scores": "already exists"}

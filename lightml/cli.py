@@ -7,50 +7,127 @@ from lightml.registry import initialize_registry
 from lightml.models.registry import RegistryInit
 from lightml.compare import compare_models
 from lightml.scan import scan_and_import
+from lightml.readers import get_available_runs, get_models_with_scores, get_metrics_with_scores
+from lightml.readers import (
+        get_available_runs, get_models_with_scores,
+        get_metrics_with_scores, check_detailed_scores_table,
+    )
+from lightml.database import migrate_database
 
 
 # =====================================================
 # COMMANDS
 # =====================================================
-def cmd_stats(args):
-    handle = LightMLHandle(
-        db=args.db,
-        run_name=args.run,
-    )
 
+
+def cmd_migrate(args):
+    
+    result = migrate_database(args.db)
+    print(f"\n  Migration complete:")
+    for table, status in result.items():
+        print(f"    {table}: {status}")
+    print()
+    
+    
+def cmd_stats(args):
+    
+    
+
+    db = args.db
+
+    status = check_detailed_scores_table(db)
+    if status == "missing":
+        print("\n  This database was created with an older version of LightML")
+        print("  that does not support detailed scores.")
+        print("  Please re-create the database with LightML >= 1.1.0\n")
+        return
+    if status == "empty":
+        print("\n  No detailed scores found in the database.")
+        print("  Log metrics with the 'scores' parameter to use statistical tests.\n")
+        return
+
+
+    def pick(prompt, options):
+        for i, opt in enumerate(options, 1):
+            print(f"    {i}. {opt}")
+        choice = int(input(f"\n  {prompt}: ")) - 1
+        return options[choice]
+
+    db = args.db
+
+    # Run
+    if not args.run:
+        runs = get_available_runs(db)
+        if len(runs) == 1:
+            run = runs[0]
+            print(f"\n  Run: {run}")
+        else:
+            print(f"\n  Available runs:")
+            run = pick("Select run", runs)
+    else:
+        run = args.run
+
+    # Models
+    if not args.model_a or not args.model_b:
+        models = get_models_with_scores(db, run)
+        print(f"\n  Models with detailed scores:")
+        print(f"\n  Select model A:")
+        model_a = pick("Model A", models)
+        remaining = [m for m in models if m != model_a]
+        print(f"\n  Select model B:")
+        model_b = pick("Model B", remaining)
+    else:
+        model_a = args.model_a
+        model_b = args.model_b
+
+    # Metric
+    if not args.family or not args.metric:
+        metrics = get_metrics_with_scores(db, run)
+        labels = [f"{f} / {m}" for f, m in metrics]
+        print(f"\n  Available metrics:")
+        chosen = pick("Select metric", labels)
+        idx = labels.index(chosen)
+        family, metric = metrics[idx]
+    else:
+        family = args.family
+        metric = args.metric
+
+    # Run test
+    handle = LightMLHandle(db=db, run_name=run)
     result = handle.compare_stats(
-        model_a=args.model_a,
-        model_b=args.model_b,
-        family=args.family,
-        metric_name=args.metric,
+        model_a=model_a,
+        model_b=model_b,
+        family=family,
+        metric_name=metric,
     )
 
     ct = result["contingency"]
     mc = result["mcnemar"]
     bs = result["bootstrap"]
 
-    print(f"\n  Statistical comparison: {args.model_a} vs {args.model_b}")
-    print(f"  Family: {args.family}  Metric: {args.metric}")
+    print(f"\n  Statistical comparison: {model_a} vs {model_b}")
+    print(f"  Family: {family}  Metric: {metric}")
     print(f"  ──────────────────────────────────────────────")
     print(f"  Both correct:    {ct['both_correct']}")
-    print(f"  Only {args.model_a}: {ct['only_a']}")
-    print(f"  Only {args.model_b}: {ct['only_b']}")
+    print(f"  Only {model_a}: {ct['only_a']}")
+    print(f"  Only {model_b}: {ct['only_b']}")
     print(f"  Both wrong:      {ct['both_wrong']}")
     print(f"  Discordant:      {ct['n_discordant']}")
     print(f"  ──────────────────────────────────────────────")
-    print(f"  Mean {args.model_a}: {result['mean_a']:.4f}")
-    print(f"  Mean {args.model_b}: {result['mean_b']:.4f}")
+    print(f"  Mean {model_a}: {result['mean_a']:.4f}")
+    print(f"  Mean {model_b}: {result['mean_b']:.4f}")
     print(f"  Delta (A - B):   {bs['delta']:+.4f}")
     print(f"  95% CI:          [{bs['ci_lower']:+.4f}, {bs['ci_upper']:+.4f}]")
     print(f"  ──────────────────────────────────────────────")
     print(f"  McNemar p-value: {mc['p_value']:.6f}")
 
     if mc["significant"]:
-        winner_name = args.model_a if mc["winner"] == "a" else args.model_b
+        winner_name = model_a if mc["winner"] == "a" else model_b
         print(f"  Result:          Significant (p < 0.05), {winner_name} is better")
     else:
         print(f"  Result:          Not significant")
     print()
+    
     
 def cmd_version(args):
     from importlib.metadata import version
@@ -276,11 +353,11 @@ def main():
     # STATS
     p_stats = subparsers.add_parser("stats", help="Statistical test (McNemar) between two models")
     p_stats.add_argument("--db", required=True)
-    p_stats.add_argument("--run", required=True)
-    p_stats.add_argument("--model-a", required=True, help="First model name")
-    p_stats.add_argument("--model-b", required=True, help="Second model name")
-    p_stats.add_argument("--family", required=True, help="Metric family")
-    p_stats.add_argument("--metric", required=True, help="Metric name")
+    p_stats.add_argument("--run", help="Run name (interactive if omitted)")
+    p_stats.add_argument("--model-a", help="First model (interactive if omitted)")
+    p_stats.add_argument("--model-b", help="Second model (interactive if omitted)")
+    p_stats.add_argument("--family", help="Metric family (interactive if omitted)")
+    p_stats.add_argument("--metric", help="Metric name (interactive if omitted)")
     p_stats.set_defaults(func=cmd_stats)
     # GUI
     p_gui = subparsers.add_parser("gui", help="Launch interactive dashboard (like tensorboard)")
@@ -288,6 +365,11 @@ def main():
     p_gui.add_argument("--port", type=int, default=5050, help="Port (default: 5050)")
     p_gui.add_argument("--host", default="0.0.0.0", help="Host (default: 0.0.0.0)")
     p_gui.set_defaults(func=cmd_gui)
+
+    # MIGRATE
+    p_migrate = subparsers.add_parser("migrate", help="Update database schema to latest version")
+    p_migrate.add_argument("--db", required=True)
+    p_migrate.set_defaults(func=cmd_migrate)
 
     args = parser.parse_args()
 
