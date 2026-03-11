@@ -26,12 +26,18 @@ lightml init --path ./my_registry --name main
 - [Core Concepts](#core-concepts)
 - [Python API Reference](#python-api-reference)
   - [LightMLHandle](#lightmlhandle)
+  - [Detailed scores](#detailed-scores)
+  - [Statistical testing](#statistical-testing)
   - [Bulk metric logging](#bulk-metric-logging)
+  - [Model deletion](#model-deletion)
   - [Metric deduplication](#metric-deduplication)
   - [Compare models](#compare-models)
   - [Auto-import (scan)](#auto-import-scan)
 - [CLI Reference](#cli-reference)
   - [diff — Compare N models side-by-side](#diff--compare-n-models-side-by-side)
+  - [stats — Statistical comparison](#stats--statistical-comparison)
+  - [migrate — Database migration](#migrate--database-migration)
+  - [version — Show version](#version--show-version)
 - [Dashboard (GUI)](#dashboard-gui)
   - [Table View](#table-view)
   - [Graph View](#graph-view)
@@ -189,15 +195,25 @@ from lightml.handle import LightMLHandle
 handle = LightMLHandle(db="path/to/registry.db", run_name="my-experiment")
 ```
 
-#### `register_model(model_name, path, parent_name=None)`
+#### `register_model(model_name, path, parent_name=None, parent_id=None)`
 
 Register a model in the current run. Idempotent — calling twice with the same name is safe.
+
+Parent linkage can be specified by name (`parent_name`) or by database id (`parent_id`). Using `parent_id` avoids name-mismatch issues when the parent was registered with a different name convention.
 
 ```python
 handle.register_model(
     model_name="llama-sft",
     path="/models/llama-3-8b-sft",
     parent_name="llama-base",  # optional: link to parent model
+)
+
+# Or link by id (useful in automation pipelines)
+parent_id = handle.register_model(model_name="llama-base", path="/models/llama-base")
+handle.register_model(
+    model_name="llama-sft",
+    path="/models/llama-sft",
+    parent_id=parent_id,
 )
 ```
 
@@ -213,9 +229,21 @@ ckpt_id = handle.register_checkpoint(
 )
 ```
 
-#### `log_model_metric(model_name, family, metric_name, value, force=False)`
+#### `find_checkpoint(model_name, step, path_hint=None)`
 
-Log a metric on a model. Returns a status code.
+Look up a checkpoint id by model name and step. When multiple checkpoints share the same step (e.g. grid search), `path_hint` disambiguates by matching against the stored path.
+
+```python
+ckpt_id = handle.find_checkpoint(
+    model_name="llama-sft",
+    step=5000,
+    path_hint="EXP1234T5678",  # optional: disambiguate
+)
+```
+
+#### `log_model_metric(model_name, family, metric_name, value, scores=None, force=False)`
+
+Log a metric on a model. Returns a status code. Optionally attach per-sample `scores` (a list of 0/1 values) for statistical testing (see [Statistical testing](#statistical-testing)).
 
 ```python
 from lightml.metrics import METRIC_INSERTED, METRIC_UPDATED, METRIC_SKIPPED
@@ -225,6 +253,7 @@ rc = handle.log_model_metric(
     family="mmlu_5shot",
     metric_name="mmlu_acc",
     value=0.634,
+    scores=[1, 0, 1, 1, 0, ...],  # optional: per-sample binary scores
     force=False,  # True = overwrite if exists
 )
 
@@ -233,7 +262,7 @@ if rc == METRIC_SKIPPED:   print("Already existed, skipped")
 if rc == METRIC_UPDATED:   print("Overwritten (force=True)")
 ```
 
-#### `log_checkpoint_metric(checkpoint_id, family, metric_name, value, force=False)`
+#### `log_checkpoint_metric(checkpoint_id, family, metric_name, value, scores=None, force=False)`
 
 Same as above, but attached to a checkpoint instead of a model.
 
@@ -243,8 +272,66 @@ handle.log_checkpoint_metric(
     family="hellaswag_0shot",
     metric_name="hellaswag_acc_norm",
     value=0.412,
+    scores=[1, 1, 0, 1, ...],  # optional
 )
 ```
+
+### Detailed Scores
+
+When you log a metric with `scores=[1, 0, 1, ...]`, LightML stores the per-sample binary vector in a dedicated `detailed_scores` table. This enables:
+
+- **McNemar's test** — exact binomial test on discordant pairs
+- **Bootstrap confidence intervals** — 95% CI on the accuracy delta
+- **Contingency tables** — how many samples both models get right/wrong
+
+Scores are stored as JSON and linked 1:1 to the metric row.
+
+```python
+# Log with detailed scores
+handle.log_model_metric(
+    model_name="llama-sft",
+    family="hellaswag_0shot",
+    metric_name="hellaswag_acc_norm",
+    value=0.75,
+    scores=[1, 1, 0, 1, 0, 1, 1, 1],  # 6/8 = 0.75
+)
+
+# Retrieve stored scores
+scores = handle.get_detailed_scores(
+    model_name="llama-sft",
+    family="hellaswag_0shot",
+    metric_name="hellaswag_acc_norm",
+)
+```
+
+### Statistical Testing
+
+Compare two models with rigorous statistical tests using their stored per-sample scores:
+
+```python
+result = handle.compare_stats(
+    model_a="llama-base",
+    model_b="llama-sft",
+    family="hellaswag_0shot",
+    metric_name="hellaswag_acc_norm",
+)
+
+print(result["contingency"])  # both_correct, only_a, only_b, both_wrong
+print(result["mcnemar"])      # p_value, significant, winner
+print(result["bootstrap"])    # delta, ci_lower, ci_upper
+print(result["mean_a"], result["mean_b"])
+```
+
+The result dict contains:
+
+| Key | Description |
+|---|---|
+| `contingency` | 2×2 contingency table: `both_correct`, `only_a`, `only_b`, `both_wrong`, `n_discordant` |
+| `mcnemar` | McNemar's exact test: `p_value`, `significant` (p < 0.05), `winner` (`"a"` or `"b"`) |
+| `bootstrap` | Bootstrap CI (10k resamples): `delta` (A−B), `ci_lower`, `ci_upper`, `confidence` |
+| `mean_a` / `mean_b` | Accuracy of each model |
+
+Also available as an interactive CLI — see [`lightml stats`](#stats--statistical-comparison).
 
 ### Bulk Metric Logging
 
@@ -338,6 +425,26 @@ eval_results/
 |---|---|---|
 | `lm_eval` | `results_*.json` | `{"results": {"task": {"metric": value}}}` |
 | `json` | `metrics*.json` / `*.json` | `{"metric": value}` or `{"family": {"metric": value}}` |
+
+### Model Deletion
+
+Delete a model and all its associated data (checkpoints, metrics, detailed scores) in a single cascade operation:
+
+```python
+from lightml.models.delete import DeleteResult
+
+result = handle.delete_model(model_name="llama-sft")
+
+print(result.model_name)           # "llama-sft"
+print(result.checkpoints_deleted)  # 5
+print(result.metrics_deleted)      # 80
+```
+
+The deletion:
+- Removes the model row (cascade deletes checkpoints + metrics + detailed scores via foreign keys)
+- Removes the symlink from the registry `models/` directory (if present)
+- Raises `ValueError` if the model doesn't exist
+- Does **not** delete child models — they keep their `parent_id` reference but become orphans
 
 ### Metric Deduplication
 
@@ -490,6 +597,59 @@ data = diff_models(
     family="ENG 5-shot",
 )
 print(format_diff(data))
+```
+
+### `stats` — Statistical comparison
+
+Interactively compare two models using McNemar's test and bootstrap confidence intervals. Requires detailed scores (logged with the `scores` parameter).
+
+```bash
+lightml stats --db ./registry/main.db
+```
+
+The command walks you through selecting models and metrics interactively. Or specify everything on the command line:
+
+```bash
+lightml stats \
+    --db ./registry/main.db \
+    --model-a llama-base \
+    --model-b llama-sft \
+    --family hellaswag_0shot \
+    --metric hellaswag_acc_norm
+```
+
+Output:
+```
+  Statistical comparison: llama-base vs llama-sft
+  Family: hellaswag_0shot  Metric: hellaswag_acc_norm
+  ──────────────────────────────────────────────────────
+  Both correct:    7234
+  Only llama-base: 312
+  Only llama-sft:  487
+  Both wrong:      1967
+  Discordant:      799
+  ──────────────────────────────────────────────────────
+  Mean llama-base: 0.7546
+  Mean llama-sft:  0.7721
+  Delta (A - B):   -0.0175
+  95% CI:          [-0.0264, -0.0087]
+  ──────────────────────────────────────────────────────
+  McNemar p-value: 0.000012
+  Result:          Significant (p < 0.05), llama-sft is better
+```
+
+### `migrate` — Database migration
+
+Apply pending schema migrations to an older database (e.g. add the `detailed_scores` table introduced in v1.1.0):
+
+```bash
+lightml migrate --db ./registry/main.db
+```
+
+### `version` — Show version
+
+```bash
+lightml version
 ```
 
 ### `gui` — Launch dashboard
@@ -656,7 +816,7 @@ lightml export --db ./my_registry/main.db
 
 ## Database Schema
 
-LightML uses a single SQLite file with 5 tables:
+LightML uses a single SQLite file with 6 tables:
 
 ```sql
 -- Experiment container
@@ -696,6 +856,14 @@ CREATE TABLE metrics (
     value           REAL NOT NULL
 );
 
+-- Per-sample binary scores for statistical testing (v1.1.0+)
+CREATE TABLE detailed_scores (
+    metric_id   INTEGER NOT NULL PRIMARY KEY,
+    scores      TEXT NOT NULL,       -- JSON array of 0/1 values
+    n_samples   INTEGER NOT NULL,
+    FOREIGN KEY(metric_id) REFERENCES metrics(id) ON DELETE CASCADE
+);
+
 -- Optional: restrict allowed metrics
 CREATE TABLE registry_schema (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -703,6 +871,8 @@ CREATE TABLE registry_schema (
     metric_name TEXT NOT NULL
 );
 ```
+
+Databases created with v1.0.x can be upgraded with `lightml migrate --db <path>` to add the `detailed_scores` table.
 
 ---
 
@@ -717,24 +887,26 @@ LightML/
 │   ├── __init__.py
 │   ├── handle.py               # LightMLHandle — main API (incl. bulk log_metrics)
 │   ├── registry.py             # Run & model registration logic
-│   ├── checkpoints.py          # Checkpoint registration
-│   ├── metrics.py              # Metric logging + deduplication
-│   ├── database.py             # SQLite schema initialization
+│   ├── checkpoints.py          # Checkpoint registration + find_checkpoint
+│   ├── metrics.py              # Metric logging + deduplication + detailed scores
+│   ├── database.py             # SQLite schema initialization + migration
+│   ├── stats.py                # Statistical testing (McNemar, Bootstrap CI)
 │   ├── export.py               # Excel export engine
 │   ├── compare.py              # Model comparison (Pydantic models + compare_models)
 │   ├── diff.py                 # N-model side-by-side diff (terminal table)
 │   ├── scan.py                 # Auto-import from eval result directories
 │   ├── gui.py                  # FastAPI dashboard server + /api/compare
 │   ├── cli.py                  # CLI entry point (lightml command)
-│   ├── models/                 # Pydantic schemas
+│   ├── models/                 # Pydantic schemas (incl. DeleteResult)
 │   ├── templates/
 │   │   └── dashboard.html      # Single-file SPA dashboard
 │   └── tests/
 │       ├── test_bugfix.py       # Core regression tests (41 tests)
 │       ├── test_compare.py      # Compare feature tests (15 tests)
-│       ├── test_diff.py          # Diff feature tests (17 tests)
+│       ├── test_diff.py         # Diff feature tests (17 tests)
 │       ├── test_scan.py         # Scan / auto-import tests (17 tests)
 │       ├── test_bulk.py         # Bulk metric API tests (15 tests)
+│       ├── test_delete.py       # Model deletion tests (6 tests)
 │       └── conftest.py          # Shared fixtures
 │
 ├── examples/
