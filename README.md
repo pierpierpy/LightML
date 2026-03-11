@@ -31,6 +31,7 @@ lightml init --path ./my_registry --name main
   - [Compare models](#compare-models)
   - [Auto-import (scan)](#auto-import-scan)
 - [CLI Reference](#cli-reference)
+  - [diff — Compare N models side-by-side](#diff--compare-n-models-side-by-side)
 - [Dashboard (GUI)](#dashboard-gui)
   - [Table View](#table-view)
   - [Graph View](#graph-view)
@@ -447,6 +448,50 @@ Output:
   ✅ 3 improved  ❌ 0 regressed  ➖ 0 unchanged  ❓ 0 missing
 ```
 
+### `diff` — Compare N models side-by-side
+
+Print a colorized table comparing metrics across two or more models — like `git diff` but for metrics. No browser needed.
+
+```bash
+lightml diff \
+    --db ./registry/main.db \
+    --models llama-base llama-sft gemma-9b \
+    --run my-experiment           # optional
+    --family "ENG 5-shot"         # optional
+    --no-color                    # optional: disable colors (for piping)
+```
+
+Output:
+```
+  lightml diff — 3 models  (run: my-experiment)
+  ══════════════════════════════════════════════════════════════════════
+  Family       Metric       llama-base     llama-sft      gemma-9b
+  ──────────────────────────────────────────────────────────────────────
+  ENG 5-shot   ARC              0.4430        0.4870        0.5120    ← green (best)
+  ENG 5-shot   HellaSwag        0.6950        0.7190        0.7340
+  ENG 5-shot   MMLU             0.5210        0.5620        0.5480
+  ──────────────────────────────────────────────────────────────────────
+  AVG          (3 metrics)      0.5530        0.5893        0.5980
+```
+
+- Best value per metric is highlighted in **green**, worst in **red** (when 3+ models)
+- Metrics are grouped by family with blank-line separators
+- An **AVG** row summarizes all metrics where every model has a value
+- Missing metrics are shown as `—`
+
+Also available as a Python API:
+```python
+from lightml.diff import diff_models, format_diff
+
+data = diff_models(
+    db="./registry/main.db",
+    model_names=["llama-base", "llama-sft", "gemma-9b"],
+    run_name="my-experiment",
+    family="ENG 5-shot",
+)
+print(format_diff(data))
+```
+
 ### `gui` — Launch dashboard
 
 ```bash
@@ -677,6 +722,7 @@ LightML/
 │   ├── database.py             # SQLite schema initialization
 │   ├── export.py               # Excel export engine
 │   ├── compare.py              # Model comparison (Pydantic models + compare_models)
+│   ├── diff.py                 # N-model side-by-side diff (terminal table)
 │   ├── scan.py                 # Auto-import from eval result directories
 │   ├── gui.py                  # FastAPI dashboard server + /api/compare
 │   ├── cli.py                  # CLI entry point (lightml command)
@@ -686,6 +732,7 @@ LightML/
 │   └── tests/
 │       ├── test_bugfix.py       # Core regression tests (41 tests)
 │       ├── test_compare.py      # Compare feature tests (15 tests)
+│       ├── test_diff.py          # Diff feature tests (17 tests)
 │       ├── test_scan.py         # Scan / auto-import tests (17 tests)
 │       ├── test_bulk.py         # Bulk metric API tests (15 tests)
 │       └── conftest.py          # Shared fixtures

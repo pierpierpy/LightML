@@ -6,6 +6,7 @@ from lightml.export import export_excel
 from lightml.registry import initialize_registry
 from lightml.models.registry import RegistryInit
 from lightml.compare import compare_models
+from lightml.diff import diff_models, format_diff
 from lightml.scan import scan_and_import
 from lightml.readers import (
     get_available_runs, get_models_with_scores, get_metrics_with_scores,
@@ -265,6 +266,16 @@ def cmd_scan(args):
     print()
 
 
+def cmd_diff(args):
+    data = diff_models(
+        db=args.db,
+        model_names=args.models,
+        run_name=args.run,
+        family=args.family,
+    )
+    print(format_diff(data, color=not args.no_color))
+
+
 def cmd_gui(args):
     from server.main import launch
     launch(db_path=args.db, host=args.host, port=args.port)
@@ -339,6 +350,15 @@ def main():
     p_scan.add_argument("--prefix", help="Prefix to prepend to model names")
     p_scan.add_argument("--force", action="store_true", help="Overwrite existing metrics")
     p_scan.set_defaults(func=cmd_scan)
+
+    # DIFF
+    p_diff = subparsers.add_parser("diff", help="Side-by-side metric comparison for N models")
+    p_diff.add_argument("--db", required=True)
+    p_diff.add_argument("--models", nargs="+", required=True, help="Model names to compare (2 or more)")
+    p_diff.add_argument("--run", help="Filter to a specific run")
+    p_diff.add_argument("--family", help="Filter to a specific metric family")
+    p_diff.add_argument("--no-color", action="store_true", help="Disable colored output")
+    p_diff.set_defaults(func=cmd_diff)
 
     # COMPARE
     p_cmp = subparsers.add_parser("compare", help="Compare metrics between two models")
