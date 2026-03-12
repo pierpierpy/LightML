@@ -5,6 +5,9 @@ from lightml.database import delete_model as _delete_model
 from lightml.models.delete import DeleteResult
 from lightml.readers import get_detailed_scores as _get_detailed_scores
 from lightml.readers import get_detailed_scores_any_run as _get_detailed_scores_any_run
+from lightml.readers import model_exists as _model_exists
+from lightml.readers import metric_exists as _metric_exists
+from lightml.readers import run_metric_exists as _run_metric_exists
 from lightml.stats import compare_models_stats
 
 
@@ -163,6 +166,20 @@ class LightMLHandle:
     def delete_model(self, model_name: str) -> DeleteResult:
         """Delete a model and all its checkpoints, metrics, and symlinks."""
         return _delete_model(db=self.db, model_name=model_name)
+
+    # ------------------------
+    # QUERIES
+    # ------------------------
+
+    def model_exists(self, model_name: str) -> bool:
+        return _model_exists(self.db, model_name)
+
+    def metric_exists(self, model_name: str, family: str, metric_name: str) -> bool:
+        return _metric_exists(self.db, model_name, family, metric_name)
+
+    def run_metric_exists(self, model_name: str,
+                          family: str, metric_name: str) -> bool:
+        return _run_metric_exists(self.db, self.run_name, model_name, family, metric_name)
 
     def get_detailed_scores(self, model_name, family, metric_name):
         return _get_detailed_scores(self.db, model_name, self.run_name, family, metric_name)

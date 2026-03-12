@@ -126,6 +126,49 @@ def all_metrics_with_scores(db):
 
 
 
+def model_exists(db: str, model_name: str) -> bool:
+    """Check whether a model is registered (any run)."""
+    with sqlite3.connect(db) as conn:
+        row = conn.execute(
+            "SELECT 1 FROM model WHERE model_name = ? LIMIT 1",
+            (model_name,),
+        ).fetchone()
+    return row is not None
+
+
+def metric_exists(db: str, model_name: str, family: str, metric_name: str) -> bool:
+    """Check whether a specific metric exists for a model (any run)."""
+    with sqlite3.connect(db) as conn:
+        row = conn.execute(
+            """SELECT 1 FROM metrics m
+               JOIN model mo ON m.model_id = mo.id
+               WHERE mo.model_name = ?
+                 AND m.family = ?
+                 AND m.metric_name = ?
+               LIMIT 1""",
+            (model_name, family, metric_name),
+        ).fetchone()
+    return row is not None
+
+
+def run_metric_exists(db: str, run_name: str, model_name: str,
+                      family: str, metric_name: str) -> bool:
+    """Check whether a specific metric exists for a model in a specific run."""
+    with sqlite3.connect(db) as conn:
+        row = conn.execute(
+            """SELECT 1 FROM metrics m
+               JOIN model mo ON m.model_id = mo.id
+               JOIN run r ON mo.run_id = r.id
+               WHERE r.run_name = ?
+                 AND mo.model_name = ?
+                 AND m.family = ?
+                 AND m.metric_name = ?
+               LIMIT 1""",
+            (run_name, model_name, family, metric_name),
+        ).fetchone()
+    return row is not None
+
+
 def check_detailed_scores_table(db):
     """Returns 'missing', 'empty', or 'ok'."""
     with sqlite3.connect(db) as conn:
