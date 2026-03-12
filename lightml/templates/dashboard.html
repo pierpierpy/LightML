@@ -653,6 +653,512 @@ tr.row-selected td:first-child { border-left: 3px solid #3b82f6; }
     .content { padding: 12px 16px; }
     .stats-bar { gap: 10px; }
 }
+
+/* ============================== CHIP BAR ============================== */
+.customize-area {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 16px;
+    padding: 14px 16px;
+    background: rgba(30, 30, 50, 0.5);
+    border: 1px solid #2d2d44;
+    border-radius: 12px;
+}
+.chip-section {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 36px;
+}
+.chip-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    color: #6b7280;
+    font-weight: 600;
+    min-width: 60px;
+}
+.chip-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    flex: 1;
+    min-height: 28px;
+    padding: 4px;
+    border-radius: 8px;
+    transition: background 0.2s;
+}
+.chip-bar.drag-over { background: rgba(59, 130, 246, 0.08); }
+.chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    background: rgba(59, 130, 246, 0.15);
+    border: 1px solid rgba(59, 130, 246, 0.3);
+    border-radius: 20px;
+    font-size: 11px;
+    color: #93c5fd;
+    cursor: grab;
+    user-select: none;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+.chip:hover {
+    background: rgba(59, 130, 246, 0.25);
+    border-color: rgba(59, 130, 246, 0.5);
+    transform: translateY(-1px);
+}
+.chip:active, .chip.dragging {
+    cursor: grabbing;
+    opacity: 0.5;
+    transform: scale(0.95);
+}
+.chip .chip-remove {
+    background: none;
+    border: none;
+    color: #6b7280;
+    cursor: pointer;
+    font-size: 14px;
+    padding: 0 2px;
+    line-height: 1;
+    transition: color 0.15s;
+}
+.chip .chip-remove:hover { color: #f87171; }
+.chip .chip-fam-tag {
+    color: #6b7280;
+    font-size: 10px;
+}
+.chip-model {
+    background: rgba(167, 139, 250, 0.15);
+    border-color: rgba(167, 139, 250, 0.3);
+    color: #c4b5fd;
+}
+.chip-model:hover {
+    background: rgba(167, 139, 250, 0.25);
+    border-color: rgba(167, 139, 250, 0.5);
+}
+.add-chip-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px dashed #4b5563;
+    border-radius: 50%;
+    color: #6b7280;
+    font-size: 16px;
+    cursor: pointer;
+    transition: all 0.2s;
+    flex-shrink: 0;
+}
+.add-chip-btn:hover {
+    background: rgba(59, 130, 246, 0.15);
+    border-color: #3b82f6;
+    color: #60a5fa;
+    transform: rotate(90deg);
+}
+/* Presets + controls row */
+.customize-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    padding-top: 8px;
+    border-top: 1px solid rgba(45, 45, 68, 0.5);
+}
+
+
+/* ============================== CHARTS VIEW ============================== */
+.charts-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
+    grid-auto-rows: 380px;
+    gap: 16px;
+}
+.chart-card {
+    background: rgba(22, 22, 38, 0.85);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 16px;
+    overflow: visible;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    transition: box-shadow 0.3s, border-color 0.3s, grid-column 0.3s, grid-row 0.3s;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.3), 0 0 0 0 rgba(59,130,246,0);
+}
+.chart-card:hover {
+    border-color: rgba(255,255,255,0.12);
+    box-shadow: 0 4px 24px rgba(0,0,0,0.4), 0 0 0 1px rgba(59,130,246,0.15);
+}
+.chart-card.size-1x1 { grid-column: span 1; grid-row: span 1; }
+.chart-card.size-2x1 { grid-column: span 2; grid-row: span 1; }
+.chart-card.size-1x2 { grid-column: span 1; grid-row: span 2; }
+.chart-card.size-2x2 { grid-column: span 2; grid-row: span 2; }
+.chart-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    flex-shrink: 0;
+}
+.chart-card-header h4 {
+    color: #f1f5f9;
+    font-size: 13px;
+    font-weight: 600;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    letter-spacing: -0.01em;
+}
+.chart-card-header .chart-type-badge {
+    font-size: 9px;
+    padding: 2px 7px;
+    border-radius: 6px;
+    background: rgba(99, 102, 241, 0.15);
+    color: #818cf8;
+    text-transform: uppercase;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+}
+.chart-card-actions {
+    display: flex;
+    gap: 4px;
+}
+.chart-card-actions button {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    color: #6b7280;
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.chart-card-actions button:hover { background: rgba(255,255,255,0.1); color: #e2e8f0; }
+.chart-card-actions button.danger:hover { background: rgba(239,68,68,0.15); color: #f87171; }
+.chart-card-body {
+    flex: 1;
+    padding: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    min-height: 0;
+}
+.chart-card-body svg { width: 100%; height: 100%; }
+
+/* ── Resize grip ── */
+.chart-resize-grip {
+    position: absolute;
+    bottom: 0; right: 0;
+    width: 24px; height: 24px;
+    cursor: nwse-resize;
+    z-index: 5;
+    border-radius: 0 0 16px 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.25s;
+}
+.chart-card:hover .chart-resize-grip { opacity: 1; }
+.chart-resize-grip svg {
+    width: 12px; height: 12px;
+    pointer-events: none;
+}
+.chart-resize-grip:active { opacity: 1 !important; }
+
+/* ── Size preview overlay during drag ── */
+.chart-size-toast {
+    position: absolute;
+    bottom: 8px; right: 32px;
+    background: rgba(0,0,0,0.7);
+    backdrop-filter: blur(8px);
+    color: #e2e8f0;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 8px;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+}
+.chart-size-toast.visible { opacity: 1; }
+
+.charts-empty {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 80px 20px;
+    color: #4b5563;
+}
+.charts-empty .icon { font-size: 48px; margin-bottom: 16px; }
+.charts-empty h3 { color: #6b7280; font-size: 16px; margin-bottom: 8px; }
+.charts-empty p { font-size: 13px; }
+
+/* ── Chart Builder Modal ────────────── */
+.cb-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 600;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    align-items: center;
+    justify-content: center;
+}
+.cb-overlay.open { display: flex; }
+.cb-modal {
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 14px;
+    width: 720px;
+    max-width: 95vw;
+    max-height: 85vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    animation: cbFadeIn 0.2s ease-out;
+}
+@keyframes cbFadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+.cb-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 24px;
+    border-bottom: 1px solid #334155;
+}
+.cb-header h3 { color: #e2e8f0; font-size: 16px; margin: 0; }
+.cb-body {
+    padding: 20px 24px;
+    overflow-y: auto;
+    flex: 1;
+}
+.cb-row {
+    margin-bottom: 18px;
+}
+.cb-label {
+    display: block;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #6b7280;
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+.cb-type-group {
+    display: flex;
+    gap: 10px;
+}
+.cb-type-btn {
+    flex: 1;
+    padding: 12px;
+    background: #0f172a;
+    border: 2px solid #334155;
+    border-radius: 10px;
+    color: #9ca3af;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.2s;
+}
+.cb-type-btn:hover { border-color: #60a5fa; color: #e0e0e0; }
+.cb-type-btn.selected { border-color: #3b82f6; background: rgba(59, 130, 246, 0.1); color: #93c5fd; }
+.cb-type-btn .cb-type-icon { font-size: 24px; display: block; margin-bottom: 4px; }
+.cb-type-btn .cb-type-name { font-size: 12px; font-weight: 600; }
+.cb-picker {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 4px;
+    max-height: 180px;
+    overflow-y: auto;
+    background: #0f172a;
+    border: 1px solid #334155;
+    border-radius: 8px;
+    padding: 8px;
+}
+.cb-picker::-webkit-scrollbar { width: 4px; }
+.cb-picker::-webkit-scrollbar-thumb { background: #374151; border-radius: 4px; }
+.cb-pick-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    color: #cbd5e1;
+    transition: background 0.1s;
+}
+.cb-pick-item:hover { background: rgba(59, 130, 246, 0.08); }
+.cb-pick-item input { accent-color: #3b82f6; width: 14px; height: 14px; cursor: pointer; }
+.cb-pick-group-hdr {
+    grid-column: 1 / -1;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #60a5fa;
+    padding: 6px 8px 2px;
+    font-weight: 600;
+}
+.cb-name-input {
+    width: 100%;
+    background: #0f172a;
+    border: 1px solid #334155;
+    color: #e0e0e0;
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-size: 13px;
+}
+.cb-name-input:focus { outline: none; border-color: #3b82f6; }
+.cb-name-input::placeholder { color: #4b5563; }
+.cb-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 16px 24px;
+    border-top: 1px solid #334155;
+}
+.cb-footer .btn { padding: 8px 20px; font-size: 13px; }
+
+/* ============================== BUILDER PANEL ============================== */
+.builder-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 500;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+}
+.builder-overlay.open { display: flex; justify-content: flex-end; }
+.builder-panel {
+    width: 340px;
+    height: 100%;
+    background: #1e293b;
+    border-left: 1px solid #374151;
+    display: flex;
+    flex-direction: column;
+    box-shadow: -8px 0 40px rgba(0, 0, 0, 0.4);
+    animation: slideIn 0.25s ease-out;
+}
+@keyframes slideIn {
+    from { transform: translateX(100%); }
+    to { transform: translateX(0); }
+}
+.builder-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid #334155;
+}
+.builder-header h3 { color: #e2e8f0; font-size: 15px; margin: 0; }
+.builder-close {
+    background: #334155;
+    border: none;
+    color: #9ca3af;
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.15s;
+}
+.builder-close:hover { background: #475569; color: #fff; }
+.builder-search {
+    margin: 12px 16px;
+    padding: 8px 12px;
+    background: #0f172a;
+    border: 1px solid #334155;
+    color: #e0e0e0;
+    border-radius: 8px;
+    font-size: 12px;
+    width: calc(100% - 32px);
+}
+.builder-search:focus { outline: none; border-color: #3b82f6; }
+.builder-search::placeholder { color: #4b5563; }
+.builder-actions {
+    display: flex;
+    gap: 8px;
+    padding: 0 16px 12px;
+}
+.builder-act-btn {
+    background: #334155;
+    border: 1px solid #475569;
+    color: #cbd5e1;
+    padding: 4px 12px;
+    border-radius: 6px;
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+.builder-act-btn:hover { background: #475569; color: #fff; }
+.builder-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0 12px 16px;
+}
+.builder-list::-webkit-scrollbar { width: 5px; }
+.builder-list::-webkit-scrollbar-thumb { background: #374151; border-radius: 4px; }
+.builder-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    margin-bottom: 4px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid transparent;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+.builder-item:hover {
+    background: rgba(59, 130, 246, 0.08);
+    border-color: rgba(59, 130, 246, 0.2);
+}
+.builder-item.active {
+    background: rgba(59, 130, 246, 0.12);
+    border-color: rgba(59, 130, 246, 0.3);
+}
+.builder-item .bi-check {
+    width: 18px;
+    height: 18px;
+    border: 2px solid #4b5563;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    color: transparent;
+    transition: all 0.15s;
+    flex-shrink: 0;
+}
+.builder-item.active .bi-check {
+    background: #3b82f6;
+    border-color: #3b82f6;
+    color: #fff;
+}
+.builder-item .bi-name { font-size: 13px; color: #e2e8f0; flex: 1; }
+.builder-item .bi-count { font-size: 10px; color: #6b7280; }
+
+/* Drag indicator */
+.chip-drop-indicator {
+    width: 2px;
+    height: 24px;
+    background: #3b82f6;
+    border-radius: 1px;
+    flex-shrink: 0;
+}
 </style>
 </head>
 <body>
@@ -667,6 +1173,7 @@ tr.row-selected td:first-child { border-left: 3px solid #3b82f6; }
         <div class="view-toggle">
             <button class="vt-btn active" id="btnTableView" onclick="switchView('table')">📊 Table</button>
             <button class="vt-btn" id="btnGraphView" onclick="switchView('graph')">🔗 Graph</button>
+            <button class="vt-btn" id="btnChartsView" onclick="switchView('charts')">📈 Charts</button>
         </div>
         <span class="db-badge" id="dbBadge">—</span>
         <select id="runSelect" title="Filter by run">
@@ -697,53 +1204,33 @@ tr.row-selected td:first-child { border-left: 3px solid #3b82f6; }
 
     <!-- Table View -->
     <div id="tableView">
-        <div class="toggle-bar">
-            <div class="filter-wrap">
-                <button class="filter-btn" id="familyFilterBtn" onclick="toggleFilterDD('familyDD')">
-                    <span>Families</span>
-                    <span class="count" id="familyFilterCount">0</span>
-                    <span class="arrow">▾</span>
-                </button>
-                <div class="filter-dd" id="familyDD">
-                    <div class="filter-dd-header">
-                        <button class="fq-btn" onclick="filterFamilyAll()">All</button>
-                        <button class="fq-btn" onclick="filterFamilyNone()">None</button>
-                        <button class="fq-btn" onclick="filterFamilyPreset('eng')">eng</button>
-                        <button class="fq-btn" onclick="filterFamilyPreset('ita')">ita</button>
-                        <button class="fq-btn" onclick="filterFamilyPreset('0shot')">0-shot</button>
-                        <button class="fq-btn" onclick="filterFamilyPreset('5shot')">5-shot</button>
-                    </div>
-                    <div class="filter-dd-list" id="familyDDList"></div>
-                </div>
+        <!-- Customize Area: Chip bars + controls -->
+        <div class="customize-area" id="customizeArea">
+            <div class="chip-section" id="metricChipSection">
+                <span class="chip-label">Metrics</span>
+                <div class="chip-bar" id="metricChipBar"></div>
+                <button class="add-chip-btn" onclick="openBuilder('metric')" title="Add/remove metrics">+</button>
             </div>
-            <div class="filter-wrap">
-                <button class="filter-btn" id="modelFilterBtn" onclick="toggleFilterDD('modelDD')">
-                    <span>Models</span>
-                    <span class="count" id="modelFilterCount">0</span>
-                    <span class="arrow">▾</span>
-                </button>
-                <div class="filter-dd right" id="modelDD">
-                    <div class="filter-dd-header">
-                        <button class="fq-btn" onclick="filterModelAll()">All</button>
-                        <button class="fq-btn" onclick="filterModelNone()">None</button>
-                        <input class="filter-dd-search" type="text" placeholder="Search models..." oninput="filterModelSearch(this.value)">
-                    </div>
-                    <div class="filter-dd-list" id="modelDDList"></div>
-                </div>
+            <div class="chip-section">
+                <span class="chip-label">Models</span>
+                <div class="chip-bar" id="modelChipBar"></div>
+                <button class="add-chip-btn" onclick="openBuilder('model')" title="Add/remove models">+</button>
             </div>
-            <input class="search-box" type="text" id="searchBox" placeholder="Search models..." oninput="renderTable()" style="width:160px;">
-            <label class="toggle-label">
-                <input type="checkbox" id="showCheckpoints" onchange="renderTable()">
-                Show checkpoints
-            </label>
-            <label class="toggle-label">
-                <input type="checkbox" id="highlightBest" checked onchange="renderTable()">
-                Highlight best
-            </label>
-            <label class="toggle-label">
-                <input type="checkbox" id="colorCells" checked onchange="renderTable()">
-                Color cells
-            </label>
+            <div class="customize-controls">
+                <input class="search-box" type="text" id="searchBox" placeholder="Search models..." oninput="renderTable()" style="width:160px;">
+                <label class="toggle-label">
+                    <input type="checkbox" id="showCheckpoints" onchange="renderTable()">
+                    Checkpoints
+                </label>
+                <label class="toggle-label">
+                    <input type="checkbox" id="highlightBest" checked onchange="renderTable()">
+                    Best
+                </label>
+                <label class="toggle-label">
+                    <input type="checkbox" id="colorCells" checked onchange="renderTable()">
+                    Colors
+                </label>
+            </div>
         </div>
         <div id="tableContainer">
             <div class="loading"><div class="spinner"></div> Loading data…</div>
@@ -762,10 +1249,80 @@ tr.row-selected td:first-child { border-left: 3px solid #3b82f6; }
         <svg id="graphSvg"></svg>
         <div class="graph-tooltip" id="graphTooltip"></div>
     </div>
+
+    <!-- Charts View -->
+    <div id="chartsView" style="display:none;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+            <h2 style="font-size:18px;color:#e2e8f0;font-weight:600;">Saved Charts</h2>
+            <button class="btn btn-primary btn-icon" onclick="openChartBuilder()">＋ New Chart</button>
+        </div>
+        <div id="chartsGrid" class="charts-grid"></div>
+    </div>
 </div>
 
 <!-- ==================== TABLE TOOLTIP ==================== -->
 <div class="cell-tooltip" id="tooltip"></div>
+
+<!-- ==================== CHART BUILDER MODAL ==================== -->
+<div class="cb-overlay" id="cbOverlay" onclick="if(event.target===this) closeChartBuilder()">
+    <div class="cb-modal">
+        <div class="cb-header">
+            <h3>New Chart</h3>
+            <button class="builder-close" onclick="closeChartBuilder()">&#x2715;</button>
+        </div>
+        <div class="cb-body">
+            <div class="cb-row">
+                <span class="cb-label">Chart Name</span>
+                <input class="cb-name-input" type="text" id="cbName" placeholder="e.g. ENG Benchmarks Overview">
+            </div>
+            <div class="cb-row">
+                <span class="cb-label">Chart Type</span>
+                <div class="cb-type-group" id="cbTypeGroup">
+                    <div class="cb-type-btn selected" data-type="radar" onclick="selectChartType('radar')">
+                        <span class="cb-type-icon">🕸️</span>
+                        <span class="cb-type-name">Radar</span>
+                    </div>
+                    <div class="cb-type-btn" data-type="bar" onclick="selectChartType('bar')">
+                        <span class="cb-type-icon">📊</span>
+                        <span class="cb-type-name">Bar</span>
+                    </div>
+                    <div class="cb-type-btn" data-type="hbar" onclick="selectChartType('hbar')">
+                        <span class="cb-type-icon">📉</span>
+                        <span class="cb-type-name">Horizontal Bar</span>
+                    </div>
+                </div>
+            </div>
+            <div class="cb-row">
+                <span class="cb-label">Models <small style="color:#4b5563;text-transform:none;letter-spacing:0;">(select 2+)</small></span>
+                <div class="cb-picker" id="cbModelPicker"></div>
+            </div>
+            <div class="cb-row">
+                <span class="cb-label">Metrics <small style="color:#4b5563;text-transform:none;letter-spacing:0;">(select 3+ for radar)</small></span>
+                <div class="cb-picker" id="cbMetricPicker"></div>
+            </div>
+        </div>
+        <div class="cb-footer">
+            <button class="btn" onclick="closeChartBuilder()">Cancel</button>
+            <button class="btn btn-primary" onclick="saveChart()">Save Chart</button>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== BUILDER PANEL ==================== -->
+<div class="builder-overlay" id="builderOverlay" onclick="if(event.target===this) closeBuilder()">
+    <div class="builder-panel">
+        <div class="builder-header">
+            <h3 id="builderTitle">Select Columns</h3>
+            <button class="builder-close" onclick="closeBuilder()">&#x2715;</button>
+        </div>
+        <input class="builder-search" type="text" id="builderSearch" placeholder="Search..." oninput="filterBuilderItems()">
+        <div class="builder-actions">
+            <button class="builder-act-btn" onclick="builderSelectAll()">Select All</button>
+            <button class="builder-act-btn" onclick="builderSelectNone()">None</button>
+        </div>
+        <div class="builder-list" id="builderList"></div>
+    </div>
+</div>
 
 <script>
 /* ======================================================================
@@ -787,6 +1344,10 @@ let filterBySelection = false;
 // ── Filter state ─────────────────────────────
 const visibleFamilies = new Set();
 const visibleModels   = new Set();
+const visibleMetrics  = new Set();
+let allMetricKeys     = [];          // all family/metric keys from DATA
+let columnOrder       = [];          // ordered list of visible metric keys
+let builderType       = null;
 
 /* ======================================================================
    VIEW SWITCH
@@ -795,10 +1356,13 @@ function switchView(view) {
     currentView = view;
     document.getElementById('tableView').style.display = view === 'table' ? 'block' : 'none';
     document.getElementById('graphView').style.display = view === 'graph' ? 'block' : 'none';
+    document.getElementById('chartsView').style.display = view === 'charts' ? 'block' : 'none';
     document.getElementById('btnTableView').classList.toggle('active', view === 'table');
     document.getElementById('btnGraphView').classList.toggle('active', view === 'graph');
+    document.getElementById('btnChartsView').classList.toggle('active', view === 'charts');
 
     if (view === 'graph' && !GRAPH) loadGraph();
+    if (view === 'charts') renderSavedCharts();
 }
 
 /* ======================================================================
@@ -887,6 +1451,10 @@ function renderStats() {
    LOAD TABLE DATA
    ====================================================================== */
 async function loadTable() {
+    // Toggle metric chip visibility (hide when single-family tab is active)
+    const metricSection = document.getElementById('metricChipSection');
+    if (metricSection) metricSection.style.display = activeFamily ? 'none' : '';
+
     const runId = document.getElementById('runSelect').value;
     let url = '/api/table?';
     if (activeFamily) url += `family=${encodeURIComponent(activeFamily)}&`;
@@ -932,18 +1500,26 @@ function renderTable() {
     if (activeFamily) {
         families = [{ name: activeFamily, metrics: TABLE.metric_names }];
     } else {
-        // Build from DATA.metrics with composite keys (family/metric_name)
-        // to match the server-side keying
+        // Build from visible metrics (individual metric-level selection)
         const fm = {};
-        for (const m of DATA.metrics) {
-            // Family filter: skip families that are hidden
-            if (visibleFamilies.size > 0 && !visibleFamilies.has(m.family)) continue;
-            if (!fm[m.family]) fm[m.family] = new Set();
-            fm[m.family].add(`${m.family}/${m.metric_name}`);
+        const visibleSet = columnOrder.length ? new Set(columnOrder) : null;
+        for (const key of (columnOrder.length ? columnOrder : allMetricKeys)) {
+            const slashIdx = key.indexOf('/');
+            if (slashIdx < 0) continue;
+            const fam = key.substring(0, slashIdx);
+            if (!fm[fam]) fm[fam] = [];
+            fm[fam].push(key);
         }
-        families = Object.entries(fm).map(([name, mset]) => ({
+        // Preserve family ordering from columnOrder
+        const seenFamilies = [];
+        const seenSet = new Set();
+        for (const key of (columnOrder.length ? columnOrder : allMetricKeys)) {
+            const fam = key.substring(0, key.indexOf('/'));
+            if (!seenSet.has(fam)) { seenSet.add(fam); seenFamilies.push(fam); }
+        }
+        families = seenFamilies.filter(f => fm[f]).map(name => ({
             name,
-            metrics: [...mset].sort()
+            metrics: fm[name]
         }));
     }
 
@@ -1550,127 +2126,715 @@ function toggleAutoRefresh(sec = 30) {
 }
 
 /* ======================================================================
-   FILTER DROPDOWNS (families + models)
+   FILTER DROPDOWNS → CHIP BARS + BUILDER PANEL
    ====================================================================== */
-
-// Close dropdown when clicking outside
-document.addEventListener('click', (e) => {
-    document.querySelectorAll('.filter-dd.open').forEach(dd => {
-        if (!dd.parentElement.contains(e.target)) dd.classList.remove('open');
-    });
-});
-
-function toggleFilterDD(id) {
-    const dd = document.getElementById(id);
-    // Close other dropdowns
-    document.querySelectorAll('.filter-dd.open').forEach(other => {
-        if (other.id !== id) other.classList.remove('open');
-    });
-    dd.classList.toggle('open');
-}
 
 function initFilters() {
     if (!DATA) return;
 
-    // Init family filter (all visible by default)
+    // Build all metric keys from DATA.metrics
+    const keySet = new Set();
+    for (const m of DATA.metrics) keySet.add(`${m.family}/${m.metric_name}`);
+    allMetricKeys = [...keySet].sort();
+
     visibleFamilies.clear();
     DATA.families.forEach(f => visibleFamilies.add(f));
-    renderFamilyDD();
 
-    // Init model filter (all visible by default)
+    visibleMetrics.clear();
+    allMetricKeys.forEach(k => visibleMetrics.add(k));
+    columnOrder = [...allMetricKeys];
+    renderMetricChips();
+
     visibleModels.clear();
     DATA.models.forEach(m => visibleModels.add(m.model_name));
-    renderModelDD();
+    renderModelChips();
 }
 
-// ── Family dropdown ──────────────────────────────
-function renderFamilyDD() {
-    const list = document.getElementById('familyDDList');
-    if (!DATA) return;
-    list.innerHTML = DATA.families.map(f => {
-        const checked = visibleFamilies.has(f) ? 'checked' : '';
-        return `<label class="filter-dd-item">
-            <input type="checkbox" ${checked} onchange="toggleFamily('${esc(f)}', this.checked)">
-            <span class="item-label">${esc(f)}</span>
-        </label>`;
-    }).join('');
-    updateFamilyBadge();
+/* ── Metric Chip Bar ─────────────────────────────── */
+function metricDisplayName(key) {
+    const i = key.indexOf('/');
+    return i >= 0 ? key.substring(i + 1) : key;
+}
+function metricFamily(key) {
+    const i = key.indexOf('/');
+    return i >= 0 ? key.substring(0, i) : '';
 }
 
-function toggleFamily(fam, on) {
-    if (on) visibleFamilies.add(fam); else visibleFamilies.delete(fam);
-    updateFamilyBadge();
-    loadTable();
+function renderMetricChips() {
+    const bar = document.getElementById('metricChipBar');
+    if (!bar) return;
+    const total = allMetricKeys.length;
+    if (columnOrder.length === total) {
+        bar.innerHTML = `<div class="chip" style="cursor:default;"><span>All metrics (${total})</span></div>`;
+        return;
+    }
+    if (columnOrder.length === 0) {
+        bar.innerHTML = `<span style="font-size:11px;color:#6b7280;font-style:italic;">No metrics selected</span>`;
+        return;
+    }
+    bar.innerHTML = columnOrder.map((key, i) =>
+        `<div class="chip" draggable="true" data-type="metric" data-name="${esc(key)}" data-index="${i}"
+              ondragstart="chipDragStart(event)" ondragover="chipDragOver(event)"
+              ondragend="chipDragEnd(event)" ondrop="chipDrop(event)"
+              title="${esc(key)}">
+            <span class="chip-fam-tag">${esc(metricFamily(key))}/</span>${esc(metricDisplayName(key))}
+            <button class="chip-remove" onclick="event.stopPropagation(); removeChip('metric','${esc(key)}')" title="Remove">&times;</button>
+        </div>`
+    ).join('');
 }
 
-function filterFamilyAll() {
-    DATA.families.forEach(f => visibleFamilies.add(f));
-    renderFamilyDD(); loadTable();
+/* ── Model Chip Bar ──────────────────────────────── */
+function renderModelChips() {
+    const bar = document.getElementById('modelChipBar');
+    if (!bar || !DATA) return;
+    const total = DATA.models.length;
+    const visible = visibleModels.size;
+    if (visible === total) {
+        bar.innerHTML = `<div class="chip chip-model" style="cursor:default;">
+            <span>All models (${total})</span>
+        </div>`;
+        return;
+    }
+    if (visible === 0) {
+        bar.innerHTML = `<span style="font-size:11px;color:#6b7280;font-style:italic;">No models selected</span>`;
+        return;
+    }
+    const models = [...visibleModels];
+    const display = models.slice(0, 20);
+    bar.innerHTML = display.map(m =>
+        `<div class="chip chip-model" data-type="model" data-name="${esc(m)}">
+            <span>${esc(m)}</span>
+            <button class="chip-remove" onclick="event.stopPropagation(); removeChip('model','${esc(m)}')" title="Remove">&times;</button>
+        </div>`
+    ).join('') + (models.length > 20 ? `<span style="font-size:11px;color:#6b7280;">+${models.length - 20} more</span>` : '');
 }
 
-function filterFamilyNone() {
-    visibleFamilies.clear();
-    renderFamilyDD(); loadTable();
+function removeChip(type, name) {
+    if (type === 'metric') {
+        columnOrder = columnOrder.filter(k => k !== name);
+        visibleMetrics.delete(name);
+        renderMetricChips();
+        renderTable();
+    } else {
+        visibleModels.delete(name);
+        renderModelChips();
+        renderTable();
+    }
 }
 
-function filterFamilyPreset(keyword) {
-    visibleFamilies.clear();
-    DATA.families.filter(f => f.includes(keyword)).forEach(f => visibleFamilies.add(f));
-    renderFamilyDD(); loadTable();
+/* ── Chip Drag & Drop (reorder metrics) ──────────── */
+let chipDragIdx = null;
+
+function chipDragStart(e) {
+    const chip = e.target.closest('.chip');
+    chipDragIdx = parseInt(chip.dataset.index);
+    chip.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', String(chipDragIdx));
 }
 
-function updateFamilyBadge() {
-    const total = DATA ? DATA.families.length : 0;
-    const active = visibleFamilies.size;
-    const countEl = document.getElementById('familyFilterCount');
-    const btnEl = document.getElementById('familyFilterBtn');
-    countEl.textContent = `${active}/${total}`;
-    btnEl.classList.toggle('has-filter', active < total);
+function chipDragOver(e) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
 }
 
-// ── Model dropdown ───────────────────────────────
-function renderModelDD(searchTerm = '') {
-    const list = document.getElementById('modelDDList');
-    if (!DATA) return;
-    const term = searchTerm.toLowerCase();
-    const filtered = DATA.models.filter(m => !term || m.model_name.toLowerCase().includes(term));
-    list.innerHTML = filtered.map(m => {
-        const checked = visibleModels.has(m.model_name) ? 'checked' : '';
-        return `<label class="filter-dd-item">
-            <input type="checkbox" ${checked} onchange="toggleModel('${esc(m.model_name)}', this.checked)">
-            <span class="item-label">${esc(m.model_name)}</span>
-        </label>`;
-    }).join('');
-    updateModelBadge();
-}
-
-function toggleModel(name, on) {
-    if (on) visibleModels.add(name); else visibleModels.delete(name);
-    updateModelBadge();
+function chipDrop(e) {
+    e.preventDefault();
+    const targetChip = e.target.closest('.chip');
+    if (!targetChip || chipDragIdx === null) return;
+    const targetIdx = parseInt(targetChip.dataset.index);
+    if (chipDragIdx === targetIdx) return;
+    const [moved] = columnOrder.splice(chipDragIdx, 1);
+    columnOrder.splice(targetIdx, 0, moved);
+    chipDragIdx = null;
+    renderMetricChips();
     renderTable();
 }
 
-function filterModelAll() {
-    DATA.models.forEach(m => visibleModels.add(m.model_name));
-    renderModelDD(); renderTable();
+function chipDragEnd() {
+    chipDragIdx = null;
+    document.querySelectorAll('.chip.dragging').forEach(c => c.classList.remove('dragging'));
 }
 
-function filterModelNone() {
-    visibleModels.clear();
-    renderModelDD(); renderTable();
+/* ── Builder Panel ───────────────────────────────── */
+function openBuilder(type) {
+    builderType = type;
+    document.getElementById('builderTitle').textContent = type === 'metric' ? 'Select Metrics' : 'Select Models';
+    document.getElementById('builderSearch').value = '';
+    document.getElementById('builderOverlay').classList.add('open');
+    renderBuilderItems();
 }
 
-function filterModelSearch(term) {
-    renderModelDD(term);
+function closeBuilder() {
+    document.getElementById('builderOverlay').classList.remove('open');
+    builderType = null;
 }
 
-function updateModelBadge() {
-    const total = DATA ? DATA.models.length : 0;
-    const active = visibleModels.size;
-    const countEl = document.getElementById('modelFilterCount');
-    const btnEl = document.getElementById('modelFilterBtn');
-    countEl.textContent = `${active}/${total}`;
-    btnEl.classList.toggle('has-filter', active < total);
+function renderBuilderItems(searchTerm) {
+    const list = document.getElementById('builderList');
+    if (!DATA) return;
+    const term = (searchTerm || '').toLowerCase();
+    if (builderType === 'metric') {
+        // Group metrics by family
+        const grouped = {};
+        for (const key of allMetricKeys) {
+            const fam = metricFamily(key);
+            if (!grouped[fam]) grouped[fam] = [];
+            grouped[fam].push(key);
+        }
+        let html = '';
+        for (const fam of Object.keys(grouped).sort()) {
+            const metrics = grouped[fam].filter(k => !term || k.toLowerCase().includes(term));
+            if (!metrics.length) continue;
+            const allOn = metrics.every(k => visibleMetrics.has(k));
+            html += `<div style="padding:8px 12px 4px;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#60a5fa;display:flex;align-items:center;gap:8px;">`;
+            html += `<span>${esc(fam)}</span>`;
+            html += `<button class="builder-act-btn" style="font-size:9px;padding:2px 8px;" onclick="toggleFamilyMetrics('${esc(fam)}')">${allOn ? 'None' : 'All'}</button>`;
+            html += `</div>`;
+            for (const key of metrics) {
+                const active = visibleMetrics.has(key) ? 'active' : '';
+                html += `<div class="builder-item ${active}" onclick="toggleBuilderItem('metric','${esc(key)}')">
+                    <span class="bi-check">&#x2713;</span>
+                    <span class="bi-name">${esc(metricDisplayName(key))}</span>
+                </div>`;
+            }
+        }
+        list.innerHTML = html;
+    } else {
+        const items = DATA.models.filter(m => !term || m.model_name.toLowerCase().includes(term));
+        list.innerHTML = items.map(m => {
+            const active = visibleModels.has(m.model_name) ? 'active' : '';
+            return `<div class="builder-item ${active}" onclick="toggleBuilderItem('model','${esc(m.model_name)}')">
+                <span class="bi-check">&#x2713;</span>
+                <span class="bi-name">${esc(m.model_name)}</span>
+            </div>`;
+        }).join('');
+    }
+}
+
+function filterBuilderItems() {
+    renderBuilderItems(document.getElementById('builderSearch').value);
+}
+
+function toggleFamilyMetrics(fam) {
+    const keys = allMetricKeys.filter(k => metricFamily(k) === fam);
+    const allOn = keys.every(k => visibleMetrics.has(k));
+    if (allOn) {
+        keys.forEach(k => { visibleMetrics.delete(k); columnOrder = columnOrder.filter(c => c !== k); });
+    } else {
+        keys.forEach(k => { if (!visibleMetrics.has(k)) { visibleMetrics.add(k); columnOrder.push(k); } });
+    }
+    renderMetricChips();
+    renderTable();
+    renderBuilderItems(document.getElementById('builderSearch').value);
+}
+
+function toggleBuilderItem(type, name) {
+    if (type === 'metric') {
+        if (visibleMetrics.has(name)) {
+            visibleMetrics.delete(name);
+            columnOrder = columnOrder.filter(k => k !== name);
+        } else {
+            visibleMetrics.add(name);
+            columnOrder.push(name);
+        }
+        renderMetricChips();
+        renderTable();
+    } else {
+        if (visibleModels.has(name)) visibleModels.delete(name);
+        else visibleModels.add(name);
+        renderModelChips();
+        renderTable();
+    }
+    renderBuilderItems(document.getElementById('builderSearch').value);
+}
+
+function builderSelectAll() {
+    if (builderType === 'metric') {
+        allMetricKeys.forEach(k => {
+            if (!visibleMetrics.has(k)) {
+                visibleMetrics.add(k);
+                columnOrder.push(k);
+            }
+        });
+        renderMetricChips();
+        renderTable();
+    } else {
+        DATA.models.forEach(m => visibleModels.add(m.model_name));
+        renderModelChips();
+        renderTable();
+    }
+    renderBuilderItems(document.getElementById('builderSearch').value);
+}
+
+function builderSelectNone() {
+    if (builderType === 'metric') {
+        visibleMetrics.clear();
+        columnOrder = [];
+        renderMetricChips();
+        renderTable();
+    } else {
+        visibleModels.clear();
+        renderModelChips();
+        renderTable();
+    }
+    renderBuilderItems(document.getElementById('builderSearch').value);
+}
+
+/* ======================================================================
+    ██████ ██   ██  █████  ██████  ████████ ███████
+   ██      ██   ██ ██   ██ ██   ██    ██    ██
+   ██      ███████ ███████ ██████     ██    ███████
+   ██      ██   ██ ██   ██ ██   ██    ██         ██
+    ██████ ██   ██ ██   ██ ██   ██    ██    ███████
+   SAVED CHARTS SYSTEM (localStorage-backed)
+   ====================================================================== */
+
+const CHART_COLORS = [
+    '#60a5fa','#f472b6','#34d399','#fbbf24','#a78bfa',
+    '#fb923c','#22d3ee','#f87171','#a3e635','#e879f9',
+    '#2dd4bf','#818cf8'
+];
+let cbSelectedType = 'radar';
+let editingChartId = null;
+
+function chartsStorageKey() {
+    return 'lightml_charts_' + (DATA ? DATA.db_name : 'default');
+}
+
+function loadSavedCharts() {
+    try { return JSON.parse(localStorage.getItem(chartsStorageKey()) || '[]'); }
+    catch { return []; }
+}
+
+function persistCharts(charts) {
+    localStorage.setItem(chartsStorageKey(), JSON.stringify(charts));
+}
+
+/* ── Builder ──────────────────────────────────────── */
+function openChartBuilder(prefill) {
+    if (!DATA) return;
+    const pName = prefill ? prefill.name : '';
+    const pType = prefill ? prefill.type : 'radar';
+    const pModels = prefill ? new Set(prefill.models) : new Set();
+    const pMetrics = prefill ? new Set(prefill.metrics) : new Set();
+    document.getElementById('cbName').value = pName;
+    cbSelectedType = pType;
+    document.querySelectorAll('.cb-type-btn').forEach(b => b.classList.toggle('selected', b.dataset.type === pType));
+
+    // Populate model picker
+    const mp = document.getElementById('cbModelPicker');
+    mp.innerHTML = DATA.models.map(m =>
+        `<label class="cb-pick-item"><input type="checkbox" value="${esc(m.model_name)}"${pModels.has(m.model_name) ? ' checked' : ''}> ${esc(m.model_name)}</label>`
+    ).join('');
+
+    // Populate metric picker grouped by family
+    const grouped = {};
+    for (const key of allMetricKeys) {
+        const fam = metricFamily(key);
+        if (!grouped[fam]) grouped[fam] = [];
+        grouped[fam].push(key);
+    }
+    const metp = document.getElementById('cbMetricPicker');
+    let mhtml = '';
+    for (const fam of Object.keys(grouped).sort()) {
+        mhtml += `<div class="cb-pick-group-hdr">${esc(fam)}</div>`;
+        for (const key of grouped[fam]) {
+            mhtml += `<label class="cb-pick-item"><input type="checkbox" value="${esc(key)}"${pMetrics.has(key) ? ' checked' : ''}> ${esc(metricDisplayName(key))}</label>`;
+        }
+    }
+    metp.innerHTML = mhtml;
+
+    document.getElementById('cbOverlay').classList.add('open');
+}
+
+function closeChartBuilder() {
+    editingChartId = null;
+    document.getElementById('cbOverlay').classList.remove('open');
+}
+
+function selectChartType(type) {
+    cbSelectedType = type;
+    document.querySelectorAll('.cb-type-btn').forEach(b => b.classList.toggle('selected', b.dataset.type === type));
+}
+
+function saveChart() {
+    const name = document.getElementById('cbName').value.trim() || ('Chart ' + (loadSavedCharts().length + 1));
+    const models = [...document.querySelectorAll('#cbModelPicker input:checked')].map(i => i.value);
+    const metrics = [...document.querySelectorAll('#cbMetricPicker input:checked')].map(i => i.value);
+
+    if (models.length < 1) { alert('Select at least 1 model.'); return; }
+    if (metrics.length < 1) { alert('Select at least 1 metric.'); return; }
+    if (cbSelectedType === 'radar' && metrics.length < 3) { alert('Radar charts need at least 3 metrics.'); return; }
+
+    const charts = loadSavedCharts();
+    if (editingChartId) {
+        const idx = charts.findIndex(c => c.id === editingChartId);
+        if (idx !== -1) {
+            charts[idx] = { ...charts[idx], name, type: cbSelectedType, models, metrics };
+        }
+    } else {
+        charts.push({
+            id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+            name, type: cbSelectedType, models, metrics,
+            created: new Date().toISOString()
+        });
+    }
+    persistCharts(charts);
+    closeChartBuilder();
+    renderSavedCharts();
+}
+
+function deleteSavedChart(id) {
+    if (!confirm('Delete this chart?')) return;
+    const charts = loadSavedCharts().filter(c => c.id !== id);
+    persistCharts(charts);
+    renderSavedCharts();
+}
+
+function editChart(id) {
+    const chart = loadSavedCharts().find(c => c.id === id);
+    if (!chart) return;
+    editingChartId = id;
+    openChartBuilder(chart);
+}
+
+function duplicateChart(id) {
+    const charts = loadSavedCharts();
+    const src = charts.find(c => c.id === id);
+    if (!src) return;
+    const dup = { ...src, id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), name: src.name + ' (copy)' };
+    charts.push(dup);
+    persistCharts(charts);
+    renderSavedCharts();
+}
+
+/* ── Render saved charts grid ──────────────────── */
+const CHART_SIZES = ['1x1','2x1','1x2','2x2'];
+const CHART_SIZE_LABELS = { '1x1':'Small', '2x1':'Wide', '1x2':'Tall', '2x2':'Large' };
+const GRIP_SVG = `<svg viewBox="0 0 12 12" fill="none"><circle cx="6" cy="10" r="1.2" fill="#6b7280"/><circle cx="10" cy="10" r="1.2" fill="#6b7280"/><circle cx="10" cy="6" r="1.2" fill="#6b7280"/></svg>`;
+
+function renderSavedCharts() {
+    const grid = document.getElementById('chartsGrid');
+    if (!grid) return;
+    const charts = loadSavedCharts();
+    if (!charts.length) {
+        grid.innerHTML = `<div class="charts-empty">
+            <div class="icon">📈</div>
+            <h3>No saved charts</h3>
+            <p>Click <strong>＋ New Chart</strong> to create a radar or bar chart.</p>
+        </div>`;
+        return;
+    }
+    grid.innerHTML = charts.map(c => {
+        const sz = c.size || '1x1';
+        return `
+        <div class="chart-card size-${sz}" id="cc-${c.id}" data-size="${sz}">
+            <div class="chart-card-header">
+                <h4><span class="chart-type-badge">${esc(c.type)}</span> ${esc(c.name)}</h4>
+                <div class="chart-card-actions">
+                    <button title="Edit" onclick="editChart('${c.id}')">✏️</button>
+                    <button title="Duplicate" onclick="duplicateChart('${c.id}')">⧉</button>
+                    <button class="danger" title="Delete" onclick="deleteSavedChart('${c.id}')">🗑</button>
+                </div>
+            </div>
+            <div class="chart-card-body" id="ccb-${c.id}"></div>
+            <div class="chart-resize-grip" data-chart-id="${c.id}">${GRIP_SVG}</div>
+            <div class="chart-size-toast" id="cst-${c.id}"></div>
+        </div>`;
+    }).join('');
+
+    for (const c of charts) renderChartD3(c);
+    initResizeGrips();
+}
+
+function initResizeGrips() {
+    document.querySelectorAll('.chart-resize-grip').forEach(grip => {
+        grip.addEventListener('mousedown', onGripDown);
+        grip.addEventListener('touchstart', onGripDown, { passive: false });
+    });
+}
+
+function onGripDown(e) {
+    e.preventDefault();
+    const grip = e.currentTarget;
+    const chartId = grip.dataset.chartId;
+    const card = document.getElementById('cc-' + chartId);
+    if (!card) return;
+
+    const toast = document.getElementById('cst-' + chartId);
+    const startX = e.touches ? e.touches[0].clientX : e.clientX;
+    const startY = e.touches ? e.touches[0].clientY : e.clientY;
+    const startSize = card.dataset.size || '1x1';
+    const [startCols, startRows] = startSize.split('x').map(Number);
+
+    // Get one grid cell size
+    const rect = card.getBoundingClientRect();
+    const cellW = rect.width / startCols;
+    const cellH = rect.height / startRows;
+
+    let curCols = startCols, curRows = startRows;
+    toast.textContent = CHART_SIZE_LABELS[startSize];
+    toast.classList.add('visible');
+    card.style.transition = 'none';
+
+    function onMove(ev) {
+        const cx = ev.touches ? ev.touches[0].clientX : ev.clientX;
+        const cy = ev.touches ? ev.touches[0].clientY : ev.clientY;
+        const dx = cx - startX;
+        const dy = cy - startY;
+
+        let newCols = Math.round(startCols + dx / cellW);
+        let newRows = Math.round(startRows + dy / cellH);
+        newCols = Math.max(1, Math.min(2, newCols));
+        newRows = Math.max(1, Math.min(2, newRows));
+
+        if (newCols !== curCols || newRows !== curRows) {
+            curCols = newCols;
+            curRows = newRows;
+            const newSize = curCols + 'x' + curRows;
+            card.className = card.className.replace(/size-\S+/, 'size-' + newSize);
+            card.dataset.size = newSize;
+            toast.textContent = CHART_SIZE_LABELS[newSize];
+            renderChartD3({ ...loadSavedCharts().find(c => c.id === chartId), _container: true });
+        }
+    }
+
+    function onUp() {
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+        document.removeEventListener('touchmove', onMove);
+        document.removeEventListener('touchend', onUp);
+        card.style.transition = '';
+        toast.classList.remove('visible');
+
+        const finalSize = curCols + 'x' + curRows;
+        const charts = loadSavedCharts();
+        const idx = charts.findIndex(c => c.id === chartId);
+        if (idx !== -1) {
+            charts[idx].size = finalSize;
+            delete charts[idx].width;
+            delete charts[idx].height;
+            persistCharts(charts);
+        }
+        // final re-render at correct size
+        setTimeout(() => renderChartD3(charts[idx] || charts.find(c => c.id === chartId)), 50);
+    }
+
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+    document.addEventListener('touchmove', onMove, { passive: false });
+    document.addEventListener('touchend', onUp);
+}
+
+/* ── Get metric data for chart ─────────────────── */
+function getChartData(chart) {
+    if (!DATA) return [];
+    // Build model_name → { metric_key → value }
+    const modelIds = {};
+    for (const m of DATA.models) {
+        if (chart.models.includes(m.model_name)) modelIds[m.id] = m.model_name;
+    }
+    const result = {};
+    for (const name of chart.models) result[name] = {};
+    for (const m of DATA.metrics) {
+        const mName = modelIds[m.model_id];
+        if (!mName) continue;
+        if (m.checkpoint_id) continue;
+        const key = `${m.family}/${m.metric_name}`;
+        if (chart.metrics.includes(key)) result[mName][key] = m.value;
+    }
+    return result;
+}
+
+/* ── D3 Chart Renderers ─────────────────────────── */
+function renderChartD3(chart) {
+    const container = document.getElementById('ccb-' + chart.id);
+    if (!container) return;
+    const data = getChartData(chart);
+    container.innerHTML = '';
+
+    if (chart.type === 'radar') renderRadar(container, chart, data);
+    else if (chart.type === 'bar') renderBarChart(container, chart, data, false);
+    else if (chart.type === 'hbar') renderBarChart(container, chart, data, true);
+}
+
+/* ── RADAR CHART ───────────────────────────────── */
+function renderRadar(container, chart, data) {
+    const W = container.clientWidth || 460;
+    const H = container.clientHeight || 340;
+    const margin = 50;
+    const R = Math.min(W, H) / 2 - margin;
+    const cx = W / 2, cy = H / 2;
+    const metrics = chart.metrics;
+    const n = metrics.length;
+    const angleSlice = (2 * Math.PI) / n;
+
+    const svg = d3.select(container).append('svg').attr('width', W).attr('height', H);
+    const g = svg.append('g').attr('transform', `translate(${cx},${cy})`);
+
+    // Normalize: find max per metric across models to scale 0-1
+    const maxVals = {};
+    for (const mk of metrics) {
+        let mx = 0;
+        for (const mName of chart.models) {
+            const v = data[mName]?.[mk];
+            if (v != null && v > mx) mx = v;
+        }
+        maxVals[mk] = mx || 1;
+    }
+
+    // Grid circles
+    const levels = 5;
+    for (let l = 1; l <= levels; l++) {
+        const r = (R / levels) * l;
+        g.append('circle').attr('r', r)
+            .attr('fill', 'none').attr('stroke', '#334155').attr('stroke-dasharray', '3,3');
+        g.append('text').attr('x', 4).attr('y', -r - 2)
+            .attr('font-size', '9px').attr('fill', '#4b5563')
+            .text(Math.round((l / levels) * 100) + '%');
+    }
+
+    // Axes
+    for (let i = 0; i < n; i++) {
+        const angle = angleSlice * i - Math.PI / 2;
+        const x = Math.cos(angle) * R;
+        const y = Math.sin(angle) * R;
+        g.append('line').attr('x1', 0).attr('y1', 0).attr('x2', x).attr('y2', y)
+            .attr('stroke', '#334155');
+        const lx = Math.cos(angle) * (R + 18);
+        const ly = Math.sin(angle) * (R + 18);
+        const label = metricDisplayName(metrics[i]);
+        const shortLabel = label.length > 18 ? label.slice(0, 15) + '…' : label;
+        g.append('text').attr('x', lx).attr('y', ly)
+            .attr('text-anchor', Math.abs(lx) < 5 ? 'middle' : lx > 0 ? 'start' : 'end')
+            .attr('dominant-baseline', 'central')
+            .attr('font-size', '10px').attr('fill', '#9ca3af')
+            .text(shortLabel);
+    }
+
+    // Data polygons
+    chart.models.forEach((modelName, mi) => {
+        const points = metrics.map((mk, i) => {
+            const v = data[modelName]?.[mk] ?? 0;
+            const norm = v / maxVals[mk];
+            const angle = angleSlice * i - Math.PI / 2;
+            return [Math.cos(angle) * R * norm, Math.sin(angle) * R * norm];
+        });
+        const color = CHART_COLORS[mi % CHART_COLORS.length];
+        const path = points.map((p, i) => (i === 0 ? 'M' : 'L') + p[0] + ',' + p[1]).join(' ') + 'Z';
+        g.append('path').attr('d', path)
+            .attr('fill', color).attr('fill-opacity', 0.12)
+            .attr('stroke', color).attr('stroke-width', 2);
+        // Dots
+        points.forEach((p, i) => {
+            const v = data[modelName]?.[metrics[i]] ?? 0;
+            const dot = g.append('circle').attr('cx', p[0]).attr('cy', p[1]).attr('r', 4)
+                .attr('fill', color).attr('stroke', '#1e293b').attr('stroke-width', 1.5)
+                .style('cursor', 'default');
+            dot.append('title').text(`${modelName}\\n${metricDisplayName(metrics[i])}: ${formatVal(v)}`);
+        });
+    });
+
+    // Legend
+    const legend = svg.append('g').attr('transform', `translate(12, ${H - chart.models.length * 16 - 8})`);
+    chart.models.forEach((name, i) => {
+        const lg = legend.append('g').attr('transform', `translate(0, ${i * 16})`);
+        lg.append('rect').attr('width', 10).attr('height', 10).attr('rx', 2).attr('fill', CHART_COLORS[i % CHART_COLORS.length]);
+        lg.append('text').attr('x', 14).attr('y', 9).attr('font-size', '10px').attr('fill', '#9ca3af')
+            .text(name.length > 30 ? name.slice(0, 27) + '…' : name);
+    });
+}
+
+/* ── BAR CHART (vertical & horizontal) ─────────── */
+function renderBarChart(container, chart, data, horizontal) {
+    const W = container.clientWidth || 460;
+    const H = container.clientHeight || Math.max(340, horizontal ? chart.metrics.length * chart.models.length * 22 + 80 : 340);
+    const margin = horizontal ? { top: 30, right: 20, bottom: 30, left: 180 } : { top: 30, right: 20, bottom: 80, left: 50 };
+
+    const svg = d3.select(container).append('svg').attr('width', W).attr('height', H);
+    const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
+    const iw = W - margin.left - margin.right;
+    const ih = H - margin.top - margin.bottom;
+
+    const metricLabels = chart.metrics.map(metricDisplayName);
+    const groupScale = horizontal
+        ? d3.scaleBand().domain(metricLabels).range([0, ih]).padding(0.2)
+        : d3.scaleBand().domain(metricLabels).range([0, iw]).padding(0.2);
+    const modelScale = d3.scaleBand().domain(chart.models).range([0, groupScale.bandwidth()]).padding(0.05);
+
+    let maxVal = 0;
+    for (const mk of chart.metrics) {
+        for (const mName of chart.models) {
+            const v = data[mName]?.[mk] ?? 0;
+            if (v > maxVal) maxVal = v;
+        }
+    }
+    maxVal = maxVal <= 1 ? 1 : maxVal * 1.1;
+
+    const valScale = horizontal
+        ? d3.scaleLinear().domain([0, maxVal]).range([0, iw]).nice()
+        : d3.scaleLinear().domain([0, maxVal]).range([ih, 0]).nice();
+
+    // Axes
+    if (horizontal) {
+        g.append('g').call(d3.axisLeft(groupScale)).selectAll('text').attr('fill', '#9ca3af').attr('font-size', '10px');
+        g.append('g').attr('transform', `translate(0,${ih})`).call(d3.axisBottom(valScale).ticks(6).tickFormat(v => v <= 1 ? (v * 100).toFixed(0) + '%' : v))
+            .selectAll('text').attr('fill', '#6b7280').attr('font-size', '9px');
+    } else {
+        g.append('g').attr('transform', `translate(0,${ih})`).call(d3.axisBottom(groupScale))
+            .selectAll('text').attr('fill', '#9ca3af').attr('font-size', '10px')
+            .attr('transform', 'rotate(-35)').attr('text-anchor', 'end');
+        g.append('g').call(d3.axisLeft(valScale).ticks(6).tickFormat(v => v <= 1 ? (v * 100).toFixed(0) + '%' : v))
+            .selectAll('text').attr('fill', '#6b7280').attr('font-size', '9px');
+    }
+    g.selectAll('.domain, .tick line').attr('stroke', '#334155');
+
+    // Grid
+    if (horizontal) {
+        g.selectAll('.grid').data(valScale.ticks(6)).join('line')
+            .attr('x1', d => valScale(d)).attr('x2', d => valScale(d))
+            .attr('y1', 0).attr('y2', ih).attr('stroke', '#1e293b');
+    } else {
+        g.selectAll('.grid').data(valScale.ticks(6)).join('line')
+            .attr('x1', 0).attr('x2', iw)
+            .attr('y1', d => valScale(d)).attr('y2', d => valScale(d)).attr('stroke', '#1e293b');
+    }
+
+    // Bars
+    chart.metrics.forEach((mk, mi) => {
+        const label = metricDisplayName(mk);
+        chart.models.forEach((model, mdi) => {
+            const v = data[model]?.[mk] ?? 0;
+            const color = CHART_COLORS[mdi % CHART_COLORS.length];
+            if (horizontal) {
+                const bar = g.append('rect')
+                    .attr('y', groupScale(label) + modelScale(model))
+                    .attr('x', 0)
+                    .attr('height', modelScale.bandwidth())
+                    .attr('width', valScale(v))
+                    .attr('fill', color).attr('rx', 3);
+                bar.append('title').text(`${model}: ${formatVal(v)}`);
+            } else {
+                const bar = g.append('rect')
+                    .attr('x', groupScale(label) + modelScale(model))
+                    .attr('y', valScale(v))
+                    .attr('width', modelScale.bandwidth())
+                    .attr('height', ih - valScale(v))
+                    .attr('fill', color).attr('rx', 3);
+                bar.append('title').text(`${model}: ${formatVal(v)}`);
+            }
+        });
+    });
+
+    // Legend
+    const legend = svg.append('g').attr('transform', `translate(${margin.left + 10}, 6)`);
+    chart.models.forEach((name, i) => {
+        const lg = legend.append('g').attr('transform', `translate(${i * 160}, 0)`);
+        lg.append('rect').attr('width', 10).attr('height', 10).attr('rx', 2).attr('fill', CHART_COLORS[i % CHART_COLORS.length]);
+        lg.append('text').attr('x', 14).attr('y', 9).attr('font-size', '10px').attr('fill', '#9ca3af')
+            .text(name.length > 20 ? name.slice(0, 17) + '…' : name);
+    });
 }
 </script>
 </body>
