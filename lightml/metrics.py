@@ -145,7 +145,7 @@ def add_metric(
                 metric_id = cursor.lastrowid
                 conn.execute(
                     """
-                    INSERT INTO detailed_scores (metric_id, scores, n_samples)
+                    INSERT OR REPLACE INTO detailed_scores (metric_id, scores, n_samples)
                     VALUES (?, ?, ?);
                     """,
                     (metric_id, json.dumps(scores), len(scores)),)
