@@ -29,12 +29,14 @@ lightml init --path ./my_registry --name main
   - [Detailed scores](#detailed-scores)
   - [Statistical testing](#statistical-testing)
   - [Bulk metric logging](#bulk-metric-logging)
+  - [Existence checks & search](#existence-checks--search)
   - [Model deletion](#model-deletion)
   - [Metric deduplication](#metric-deduplication)
   - [Compare models](#compare-models)
   - [Auto-import (scan)](#auto-import-scan)
 - [CLI Reference](#cli-reference)
   - [diff — Compare N models side-by-side](#diff--compare-n-models-side-by-side)
+  - [exists — Check if a model or metric exists](#exists--check-if-a-model-or-metric-exists)
   - [stats — Statistical comparison](#stats--statistical-comparison)
   - [migrate — Database migration](#migrate--database-migration)
   - [version — Show version](#version--show-version)
@@ -426,6 +428,41 @@ eval_results/
 | `lm_eval` | `results_*.json` | `{"results": {"task": {"metric": value}}}` |
 | `json` | `metrics*.json` / `*.json` | `{"metric": value}` or `{"family": {"metric": value}}` |
 
+### Existence Checks & Search
+
+Check whether a model or metric exists in the database. All three methods return `True`/`False`:
+
+```python
+# Does this model exist (any run)?
+handle.model_exists("llama-sft")  # True
+
+# Does this specific metric exist for a model (any run)?
+handle.metric_exists("llama-sft", "eng", "hellaswag_0shot_acc_norm")  # True
+
+# Does this metric exist for a model in the handle's run?
+handle.run_metric_exists("llama-sft", "eng", "hellaswag_0shot_acc_norm")  # True
+```
+
+For exploratory queries, use `search()` with glob patterns (`*` and `?`):
+
+```python
+# All hellaswag metrics for any model starting with "MIIA"
+results = handle.search(model="MIIA*", family="eng", metric="hella*")
+
+for r in results:
+    print(f"{r['model']}  {r['family']}/{r['metric']} = {r['value']:.4f}")
+# MIIA14B-BASE  eng/hellaswag_0shot_acc_norm = 0.7240
+# MIIA14B-BASE  eng/hellaswag_5shot_acc_norm = 0.7378
+# MIIA7B        eng/hellaswag_0shot_acc_norm = 0.7193
+# ...
+
+# Search models only
+models = handle.search(model="llama*")
+# [{"model": "llama-base"}, {"model": "llama-sft"}, ...]
+```
+
+`search()` returns a list of dicts with keys: `model`, `family`, `metric`, `value`, `run` (when searching metrics) or just `model` (when searching models only).
+
 ### Model Deletion
 
 Delete a model and all its associated data (checkpoints, metrics, detailed scores) in a single cascade operation:
@@ -597,6 +634,36 @@ data = diff_models(
     family="ENG 5-shot",
 )
 print(format_diff(data))
+```
+
+### `exists` — Check if a model or metric exists
+
+Check existence with exact names or glob patterns (`*`, `?`). Exit code 0 = found, 1 = not found.
+
+```bash
+# Check if a model exists
+lightml exists --db ./registry/main.db --model llama-sft
+
+# Check if a specific metric exists
+lightml exists --db ./registry/main.db --model llama-sft --family eng --metric hellaswag_0shot_acc_norm
+
+# Glob search — find all hellaswag metrics for MIIA models
+lightml exists --db ./registry/main.db --model MIIA* --family eng --metric hella*
+#   ✓ MIIA14B-BASE  eng/hellaswag_0shot_acc_norm = 0.7240  (run: MIIA14B)
+#   ✓ MIIA14B-BASE  eng/hellaswag_5shot_acc_norm = 0.7378  (run: MIIA14B)
+#   ✓ MIIA7B        eng/hellaswag_0shot_acc_norm = 0.7193  (run: MIIA14B)
+#   ...
+#   8 match(es)
+
+# Restrict to a specific run
+lightml exists --db ./registry/main.db --model llama* --family eng --metric mmlu* --run my-experiment
+```
+
+Usable in scripts:
+```bash
+if lightml exists --db ./registry/main.db --model my-model 2>/dev/null; then
+    echo "Model already registered, skipping"
+fi
 ```
 
 ### `stats` — Statistical comparison

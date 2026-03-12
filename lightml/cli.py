@@ -12,6 +12,8 @@ from lightml.readers import (
     get_available_runs, get_models_with_scores, get_metrics_with_scores,
     all_models_with_scores, all_metrics_with_scores,
     check_detailed_scores_table,
+    model_exists, metric_exists, run_metric_exists,
+    search_entries,
 )
 from lightml.database import migrate_database
 
@@ -276,6 +278,58 @@ def cmd_diff(args):
     print(format_diff(data, color=not args.no_color))
 
 
+def cmd_exists(args):
+    model = args.model
+    family = args.family
+    metric = args.metric
+    run = args.run
+
+    if not model:
+        print("Error: --model is required.")
+        raise SystemExit(1)
+
+    if (family and not metric) or (metric and not family):
+        print("Error: --family and --metric must be used together.")
+        raise SystemExit(1)
+
+    # Detect glob patterns in any field
+    has_pattern = any("*" in (s or "") or "?" in (s or "")
+                      for s in (model, family, metric, run))
+
+    if has_pattern:
+        results = search_entries(args.db, model, family, metric, run)
+        if not results:
+            print("  ✗ no matches")
+            raise SystemExit(1)
+        if family and metric:
+            for r in results:
+                print(f"  ✓ {r['model']}  {r['family']}/{r['metric']} = {r['value']:.4f}  (run: {r['run']})")
+        else:
+            for r in results:
+                print(f"  ✓ {r['model']}")
+        print(f"\n  {len(results)} match(es)")
+        raise SystemExit(0)
+
+    # Exact match
+    if family and metric:
+        if run:
+            found = run_metric_exists(args.db, run, model, family, metric)
+            scope = f"model='{model}', run='{run}', family='{family}', metric='{metric}'"
+        else:
+            found = metric_exists(args.db, model, family, metric)
+            scope = f"model='{model}', family='{family}', metric='{metric}'"
+    else:
+        found = model_exists(args.db, model)
+        scope = f"model='{model}'"
+
+    if found:
+        print(f"  ✓ exists: {scope}")
+    else:
+        print(f"  ✗ not found: {scope}")
+
+    raise SystemExit(0 if found else 1)
+
+
 def cmd_gui(args):
     from server.main import launch
     launch(db_path=args.db, host=args.host, port=args.port)
@@ -383,6 +437,15 @@ def main():
     p_gui.add_argument("--port", type=int, default=5050, help="Port (default: 5050)")
     p_gui.add_argument("--host", default="0.0.0.0", help="Host (default: 0.0.0.0)")
     p_gui.set_defaults(func=cmd_gui)
+
+    # EXISTS
+    p_exists = subparsers.add_parser("exists", help="Check if a model or metric exists")
+    p_exists.add_argument("--db", required=True)
+    p_exists.add_argument("--model", required=True, help="Model name")
+    p_exists.add_argument("--family", help="Metric family (requires --metric)")
+    p_exists.add_argument("--metric", help="Metric name (requires --family)")
+    p_exists.add_argument("--run", help="Restrict to a specific run")
+    p_exists.set_defaults(func=cmd_exists)
 
     # MIGRATE
     p_migrate = subparsers.add_parser("migrate", help="Update database schema to latest version")

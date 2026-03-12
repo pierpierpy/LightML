@@ -169,6 +169,54 @@ def run_metric_exists(db: str, run_name: str, model_name: str,
     return row is not None
 
 
+def _has_glob(s: str) -> bool:
+    return "*" in s or "?" in s
+
+
+def search_entries(db: str, model: str,
+                   family: str | None = None,
+                   metric: str | None = None,
+                   run_name: str | None = None) -> list[dict]:
+    """Search models/metrics using exact match or GLOB patterns.
+
+    Returns a list of dicts with keys: model, family, metric, value, run.
+    If family/metric are None, returns matching models only.
+    """
+    with sqlite3.connect(db) as conn:
+        if family and metric:
+            # Search metrics
+            mo_op = "GLOB" if _has_glob(model) else "="
+            f_op = "GLOB" if _has_glob(family) else "="
+            m_op = "GLOB" if _has_glob(metric) else "="
+
+            sql = f"""SELECT mo.model_name, m.family, m.metric_name, m.value, r.run_name
+                      FROM metrics m
+                      JOIN model mo ON m.model_id = mo.id
+                      JOIN run r ON mo.run_id = r.id
+                      WHERE mo.model_name {mo_op} ?
+                        AND m.family {f_op} ?
+                        AND m.metric_name {m_op} ?"""
+            params: list = [model, family, metric]
+
+            if run_name:
+                r_op = "GLOB" if _has_glob(run_name) else "="
+                sql += f" AND r.run_name {r_op} ?"
+                params.append(run_name)
+
+            sql += " ORDER BY mo.model_name, m.family, m.metric_name"
+            rows = conn.execute(sql, params).fetchall()
+            return [
+                {"model": r[0], "family": r[1], "metric": r[2], "value": r[3], "run": r[4]}
+                for r in rows
+            ]
+        else:
+            # Search models only
+            mo_op = "GLOB" if _has_glob(model) else "="
+            sql = f"SELECT DISTINCT mo.model_name FROM model mo WHERE mo.model_name {mo_op} ?"
+            rows = conn.execute(sql, [model]).fetchall()
+            return [{"model": r[0]} for r in rows]
+
+
 def check_detailed_scores_table(db):
     """Returns 'missing', 'empty', or 'ok'."""
     with sqlite3.connect(db) as conn:
