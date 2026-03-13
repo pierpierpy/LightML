@@ -67,7 +67,7 @@ def cmd_stats(args):
 
     # Models (cross-run: list all models with detailed scores)
     if not args.model_a or not args.model_b:
-        models = all_models_with_scores(db)
+        models = all_models_with_scores(db, include_hidden=getattr(args, 'include_hidden', False))
         if len(models) < 2:
             print(f"\n  Need at least 2 models with detailed scores to compare.")
             print(f"  Found: {len(models)}\n")
@@ -516,6 +516,7 @@ def main():
     p_stats.add_argument("--model-b", help="Second model (interactive if omitted)")
     p_stats.add_argument("--family", help="Metric family (interactive if omitted)")
     p_stats.add_argument("--metric", help="Metric name (interactive if omitted)")
+    p_stats.add_argument("--include-hidden", action="store_true", help="Include hidden models")
     p_stats.set_defaults(func=cmd_stats)
     # GUI
     p_gui = subparsers.add_parser("gui", help="Launch interactive dashboard (like tensorboard)")

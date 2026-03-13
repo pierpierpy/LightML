@@ -88,13 +88,15 @@ def get_models_with_scores(db, run_name):
     return [r[0] for r in rows]
 
 
-def all_models_with_scores(db):
+def all_models_with_scores(db, include_hidden=False):
+    where = "" if include_hidden else "WHERE mo.hidden = 0"
     with sqlite3.connect(db) as conn:
-        rows = conn.execute("""
+        rows = conn.execute(f"""
             SELECT DISTINCT mo.model_name
             FROM detailed_scores ds
             JOIN metrics m ON ds.metric_id = m.id
             JOIN model mo ON m.model_id = mo.id
+            {where}
             ORDER BY mo.model_name
         """).fetchall()
     return [r[0] for r in rows]
