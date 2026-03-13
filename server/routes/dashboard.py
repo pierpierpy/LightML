@@ -60,6 +60,7 @@ async def get_data(request: Request):
                r.run_name, m.notes, m.hidden
         FROM model m
         JOIN run r ON m.run_id = r.id
+        WHERE m.hidden = 0
         ORDER BY m.id
     """)
 
@@ -68,6 +69,7 @@ async def get_data(request: Request):
                m.model_name
         FROM checkpoint c
         JOIN model m ON c.model_id = m.id
+        WHERE m.hidden = 0
         ORDER BY c.model_id, c.step
     """)
 
@@ -75,6 +77,10 @@ async def get_data(request: Request):
         SELECT me.id, me.model_id, me.checkpoint_id,
                me.family, me.metric_name, me.value
         FROM metrics me
+        LEFT JOIN model m ON me.model_id = m.id
+        LEFT JOIN checkpoint c ON me.checkpoint_id = c.id
+        LEFT JOIN model mc ON c.model_id = mc.id
+        WHERE COALESCE(m.hidden, mc.hidden, 0) = 0
         ORDER BY me.family, me.metric_name
     """)
 
