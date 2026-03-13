@@ -11,6 +11,7 @@ from lightml.scan import scan_and_import
 from lightml.readers import (
     get_available_runs, get_models_with_scores, get_metrics_with_scores,
     all_models_with_scores, all_metrics_with_scores,
+    common_metrics_with_scores,
     check_detailed_scores_table,
     model_exists, metric_exists, run_metric_exists,
     search_entries,
@@ -83,50 +84,135 @@ def cmd_stats(args):
 
     # Metric
     if not args.family or not args.metric:
-        metrics = all_metrics_with_scores(db)
+        metrics = common_metrics_with_scores(db, model_a, model_b)
+        if not metrics:
+            print(f"\n  No common metrics found between {model_a} and {model_b}.\n")
+            return
         labels = [f"{f} / {m}" for f, m in metrics]
         print(f"\n  Available metrics:")
-        chosen = pick("Select metric", labels)
-        idx = labels.index(chosen)
-        family, metric = metrics[idx]
-    else:
-        family = args.family
-        metric = args.metric
+        for i, lbl in enumerate(labels, 1):
+            print(f"    {i}. {lbl}")
+        print(f"\n  Enter number(s), comma-separated ranges (1,3-5),")
+        print(f"  'all', a family name (eng/ita), or glob patterns (hella*, gsm*)")
+        raw = input(f"\n  Select metric(s): ").strip()
 
-    # Run test (run_name not needed for cross-run compare)
+        import re, fnmatch
+        selected_indices = set()
+
+        if raw.lower() == 'all':
+            selected_indices = set(range(len(labels)))
+        else:
+            for part in [p.strip() for p in raw.split(',')]:
+                if not part:
+                    continue
+                # Number or range: "3" or "3-5"
+                range_match = re.match(r'^(\d+)(?:-(\d+))?$', part)
+                if range_match:
+                    lo = int(range_match.group(1)) - 1
+                    hi = int(range_match.group(2)) - 1 if range_match.group(2) else lo
+                    for i in range(max(0, lo), min(hi + 1, len(labels))):
+                        selected_indices.add(i)
+                    continue
+                # Family name exact match (e.g. "eng", "ita")
+                fam_matches = [i for i, (f, _) in enumerate(metrics) if f.lower() == part.lower()]
+                if fam_matches:
+                    selected_indices.update(fam_matches)
+                    continue
+                # Glob/fnmatch pattern against label
+                pat = part if '*' in part or '?' in part else f'*{part}*'
+                for i, lbl in enumerate(labels):
+                    if fnmatch.fnmatch(lbl.lower(), pat.lower()):
+                        selected_indices.add(i)
+
+        if not selected_indices:
+            print(f"  No metrics matched.\n")
+            return
+
+        selected_metrics = [metrics[i] for i in sorted(selected_indices)]
+        print(f"\n  Selected {len(selected_metrics)} metric(s):")
+        for f, m in selected_metrics:
+            print(f"    - {f} / {m}")
+    else:
+        selected_metrics = [(args.family, args.metric)]
+
+    # Run tests for each selected metric
     handle = LightMLHandle(db=db)
-    result = handle.compare_stats(
-        model_a=model_a,
-        model_b=model_b,
-        family=family,
-        metric_name=metric,
-    )
+    overview = []
+    for family, metric in selected_metrics:
+        result = handle.compare_stats(
+            model_a=model_a,
+            model_b=model_b,
+            family=family,
+            metric_name=metric,
+        )
 
-    ct = result["contingency"]
-    mc = result["mcnemar"]
-    bs = result["bootstrap"]
+        ct = result["contingency"]
+        mc = result["mcnemar"]
+        bs = result["bootstrap"]
 
-    print(f"\n  Statistical comparison: {model_a} vs {model_b}")
-    print(f"  Family: {family}  Metric: {metric}")
-    print(f"  ──────────────────────────────────────────────")
-    print(f"  Both correct:    {ct['both_correct']}")
-    print(f"  Only {model_a}: {ct['only_a']}")
-    print(f"  Only {model_b}: {ct['only_b']}")
-    print(f"  Both wrong:      {ct['both_wrong']}")
-    print(f"  Discordant:      {ct['n_discordant']}")
-    print(f"  ──────────────────────────────────────────────")
-    print(f"  Mean {model_a}: {result['mean_a']:.4f}")
-    print(f"  Mean {model_b}: {result['mean_b']:.4f}")
-    print(f"  Delta (A - B):   {bs['delta']:+.4f}")
-    print(f"  95% CI:          [{bs['ci_lower']:+.4f}, {bs['ci_upper']:+.4f}]")
-    print(f"  ──────────────────────────────────────────────")
-    print(f"  McNemar p-value: {mc['p_value']:.6f}")
+        print(f"\n  Statistical comparison: {model_a} vs {model_b}")
+        print(f"  Family: {family}  Metric: {metric}")
+        print(f"  ──────────────────────────────────────────────")
+        print(f"  Both correct:    {ct['both_correct']}")
+        print(f"  Only {model_a}: {ct['only_a']}")
+        print(f"  Only {model_b}: {ct['only_b']}")
+        print(f"  Both wrong:      {ct['both_wrong']}")
+        print(f"  Discordant:      {ct['n_discordant']}")
+        print(f"  ──────────────────────────────────────────────")
+        print(f"  Mean {model_a}: {result['mean_a']:.4f}")
+        print(f"  Mean {model_b}: {result['mean_b']:.4f}")
+        print(f"  Delta (A - B):   {bs['delta']:+.4f}")
+        print(f"  95% CI:          [{bs['ci_lower']:+.4f}, {bs['ci_upper']:+.4f}]")
+        print(f"  ──────────────────────────────────────────────")
+        print(f"  McNemar p-value: {mc['p_value']:.6f}")
 
-    if mc["significant"]:
-        winner_name = model_a if mc["winner"] == "a" else model_b
-        print(f"  Result:          Significant (p < 0.05), {winner_name} is better")
-    else:
-        print(f"  Result:          Not significant")
+        if mc["significant"]:
+            winner_name = model_a if mc["winner"] == "a" else model_b
+            print(f"  Result:          Significant (p < 0.05), {winner_name} is better")
+        else:
+            print(f"  Result:          Not significant")
+
+        # Collect for overview
+        if mc["significant"]:
+            winner_label = model_a if mc["winner"] == "a" else model_b
+        else:
+            winner_label = "—"
+        overview.append((family, metric, bs["delta"], mc["p_value"], mc["significant"], winner_label))
+
+    # Print overview table when multiple metrics were tested
+    if len(overview) > 1:
+        metric_col = max(len(f"{f}/{m}") for f, m, *_ in overview)
+        metric_col = max(metric_col, 6)  # min width for "Metric"
+        winner_col = max((len(w) for *_, w in overview), default=6)
+        winner_col = max(winner_col, 6)  # min width for "Winner"
+
+        hdr_metric = "Metric".ljust(metric_col)
+        hdr_delta  = "Delta".center(9)
+        hdr_pval   = "p-value".center(10)
+        hdr_sig    = "Sig?"
+        hdr_winner = "Winner".ljust(winner_col)
+
+        sep = "─" * (metric_col + 9 + 10 + 6 + winner_col + 12)
+
+        print(f"\n  ┌{sep}┐")
+        print(f"  │  {hdr_metric}  {hdr_delta}  {hdr_pval}  {hdr_sig}  {hdr_winner}  │")
+        print(f"  ├{sep}┤")
+
+        for family, metric, delta, pval, sig, winner in overview:
+            m_str = f"{family}/{metric}".ljust(metric_col)
+            d_str = f"{delta:+.4f}".rjust(9)
+            p_str = f"{pval:.4f}".rjust(10) if pval >= 0.0001 else f"{pval:.2e}".rjust(10)
+            s_str = " ✓  " if sig else " ✗  "
+            w_str = winner.ljust(winner_col)
+            print(f"  │  {m_str}  {d_str}  {p_str}  {s_str}  {w_str}  │")
+
+        print(f"  └{sep}┘")
+
+        n_sig = sum(1 for *_, sig, _ in overview if sig)
+        a_wins = sum(1 for *_, sig, w in overview if sig and w == model_a)
+        b_wins = sum(1 for *_, sig, w in overview if sig and w == model_b)
+        print(f"\n  Summary: {n_sig}/{len(overview)} significant — "
+              f"{model_a} wins {a_wins}, {model_b} wins {b_wins}")
     print()
     
     

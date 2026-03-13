@@ -1082,6 +1082,60 @@ tr.row-selected td:first-child { border-left: 3px solid #3b82f6; }
 }
 .chart-card-body svg { width: 100%; height: 100%; }
 
+/* ── Chart table (table/pivot type) ── */
+.chart-table-wrap {
+    width: 100%; height: 100%; overflow: auto;
+    scrollbar-width: thin; scrollbar-color: #374151 transparent;
+}
+.chart-table-wrap table {
+    border-collapse: collapse; width: 100%; font-size: 11px;
+}
+.chart-table-wrap th {
+    position: sticky; top: 0; z-index: 2;
+    background: #1e293b; color: #94a3b8; font-weight: 600; text-transform: uppercase;
+    font-size: 9px; letter-spacing: 0.5px; padding: 6px 10px;
+    border-bottom: 2px solid #334155; text-align: left; white-space: nowrap;
+}
+.chart-table-wrap td {
+    padding: 5px 10px; color: #cbd5e1; border-bottom: 1px solid rgba(255,255,255,0.04);
+    white-space: nowrap;
+}
+.chart-table-wrap tr:hover td { background: rgba(59,130,246,0.06); }
+.chart-table-wrap .ct-best { color: #34d399; font-weight: 600; }
+.chart-table-wrap .ct-model { color: #e2e8f0; font-weight: 500; }
+.chart-table-wrap .ct-pivot-hdr {
+    background: rgba(99,102,241,0.08); color: #a78bfa; font-weight: 600;
+    font-size: 10px; padding: 4px 10px;
+}
+
+/* ── Drag grip (top of card) ── */
+.chart-drag-grip {
+    position: absolute;
+    top: 0; left: 50%; transform: translateX(-50%);
+    width: 40px; height: 14px;
+    cursor: grab;
+    z-index: 6;
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0; transition: opacity 0.25s;
+}
+.chart-card:hover .chart-drag-grip { opacity: 1; }
+.chart-drag-grip::after {
+    content: '';
+    width: 28px; height: 4px;
+    background: #4b5563; border-radius: 2px;
+    transition: background 0.2s;
+}
+.chart-drag-grip:hover::after { background: #60a5fa; }
+.chart-drag-grip:active { cursor: grabbing; }
+.chart-card.dragging-card {
+    opacity: 0.5; transform: scale(0.97);
+    transition: opacity 0.15s, transform 0.15s;
+}
+.chart-card.drop-target {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 2px rgba(59,130,246,0.3), 0 4px 24px rgba(0,0,0,0.4);
+}
+
 /* ── Resize grip ── */
 .chart-resize-grip {
     position: absolute;
@@ -1560,6 +1614,14 @@ tr.row-selected td:first-child { border-left: 3px solid #3b82f6; }
                     <div class="cb-type-btn" data-type="hbar" onclick="selectChartType('hbar')">
                         <span class="cb-type-icon">📉</span>
                         <span class="cb-type-name">Horizontal Bar</span>
+                    </div>
+                    <div class="cb-type-btn" data-type="table" onclick="selectChartType('table')">
+                        <span class="cb-type-icon">📋</span>
+                        <span class="cb-type-name">Table</span>
+                    </div>
+                    <div class="cb-type-btn" data-type="pivot" onclick="selectChartType('pivot')">
+                        <span class="cb-type-icon">🔄</span>
+                        <span class="cb-type-name">Pivot</span>
                     </div>
                 </div>
             </div>
@@ -2943,6 +3005,7 @@ function saveChart() {
     if (models.length < 1) { alert('Select at least 1 model.'); return; }
     if (metrics.length < 1) { alert('Select at least 1 metric.'); return; }
     if (cbSelectedType === 'radar' && metrics.length < 3) { alert('Radar charts need at least 3 metrics.'); return; }
+    if (cbSelectedType === 'pivot' && metrics.length < 1) { alert('Pivot needs at least 1 metric.'); return; }
 
     const charts = loadSavedCharts();
     if (editingChartId) {
@@ -3006,7 +3069,8 @@ function renderSavedCharts() {
     grid.innerHTML = charts.map(c => {
         const sz = c.size || '1x1';
         return `
-        <div class="chart-card size-${sz}" id="cc-${c.id}" data-size="${sz}">
+        <div class="chart-card size-${sz}" id="cc-${c.id}" data-size="${sz}" data-chart-id="${c.id}">
+            <div class="chart-drag-grip" data-chart-id="${c.id}" title="Drag to reorder"></div>
             <div class="chart-card-header">
                 <h4><span class="chart-type-badge">${esc(c.type)}</span> ${esc(c.name)}</h4>
                 <div class="chart-card-actions">
@@ -3023,6 +3087,7 @@ function renderSavedCharts() {
 
     for (const c of charts) renderChartD3(c);
     initResizeGrips();
+    initDragGrips();
 }
 
 function initResizeGrips() {
@@ -3134,6 +3199,8 @@ function renderChartD3(chart) {
     if (chart.type === 'radar') renderRadar(container, chart, data);
     else if (chart.type === 'bar') renderBarChart(container, chart, data, false);
     else if (chart.type === 'hbar') renderBarChart(container, chart, data, true);
+    else if (chart.type === 'table') renderTableChart(container, chart, data);
+    else if (chart.type === 'pivot') renderPivotChart(container, chart, data);
 }
 
 /* ── RADAR CHART ───────────────────────────────── */
@@ -3214,12 +3281,15 @@ function renderRadar(container, chart, data) {
     });
 
     // Legend
-    const legend = svg.append('g').attr('transform', `translate(12, ${H - chart.models.length * 16 - 8})`);
+    const lgH = chart.models.length * 20 + 12;
+    const legend = svg.append('g').attr('transform', `translate(8, ${H - lgH})`);
+    legend.append('rect').attr('width', 200).attr('height', lgH).attr('rx', 6)
+        .attr('fill', 'rgba(15,23,42,0.85)').attr('stroke', '#334155').attr('stroke-width', 1);
     chart.models.forEach((name, i) => {
-        const lg = legend.append('g').attr('transform', `translate(0, ${i * 16})`);
-        lg.append('rect').attr('width', 10).attr('height', 10).attr('rx', 2).attr('fill', CHART_COLORS[i % CHART_COLORS.length]);
-        lg.append('text').attr('x', 14).attr('y', 9).attr('font-size', '10px').attr('fill', '#9ca3af')
-            .text(name.length > 30 ? name.slice(0, 27) + '…' : name);
+        const lg = legend.append('g').attr('transform', `translate(8, ${i * 20 + 8})`);
+        lg.append('rect').attr('width', 12).attr('height', 12).attr('rx', 3).attr('fill', CHART_COLORS[i % CHART_COLORS.length]);
+        lg.append('text').attr('x', 18).attr('y', 10).attr('font-size', '11px').attr('fill', '#e2e8f0').attr('font-weight', '500')
+            .text(name.length > 25 ? name.slice(0, 22) + '…' : name);
     });
 }
 
@@ -3305,13 +3375,156 @@ function renderBarChart(container, chart, data, horizontal) {
     });
 
     // Legend
-    const legend = svg.append('g').attr('transform', `translate(${margin.left + 10}, 6)`);
+    const lgW = chart.models.length * 160;
+    const legend = svg.append('g').attr('transform', `translate(${margin.left + 4}, 2)`);
+    legend.append('rect').attr('width', Math.min(lgW + 10, W - margin.left)).attr('height', 22).attr('rx', 6)
+        .attr('fill', 'rgba(15,23,42,0.85)').attr('stroke', '#334155').attr('stroke-width', 1);
     chart.models.forEach((name, i) => {
-        const lg = legend.append('g').attr('transform', `translate(${i * 160}, 0)`);
-        lg.append('rect').attr('width', 10).attr('height', 10).attr('rx', 2).attr('fill', CHART_COLORS[i % CHART_COLORS.length]);
-        lg.append('text').attr('x', 14).attr('y', 9).attr('font-size', '10px').attr('fill', '#9ca3af')
-            .text(name.length > 20 ? name.slice(0, 17) + '…' : name);
+        const lg = legend.append('g').attr('transform', `translate(${i * 160 + 6}, 4)`);
+        lg.append('rect').attr('width', 12).attr('height', 12).attr('rx', 3).attr('fill', CHART_COLORS[i % CHART_COLORS.length]);
+        lg.append('text').attr('x', 18).attr('y', 10).attr('font-size', '11px').attr('fill', '#e2e8f0').attr('font-weight', '500')
+            .text(name.length > 18 ? name.slice(0, 15) + '…' : name);
     });
+}
+
+/* ── TABLE CHART ───────────────────────────────── */
+function renderTableChart(container, chart, data) {
+    // Models as rows, metrics as columns (like main table view)
+    let html = '<div class="chart-table-wrap"><table><thead><tr><th>Model</th>';
+    for (const mk of chart.metrics) {
+        html += `<th>${esc(metricDisplayName(mk))}</th>`;
+    }
+    html += '</tr></thead><tbody>';
+
+    // Find best per metric for highlighting
+    const best = {};
+    for (const mk of chart.metrics) {
+        let mx = -Infinity;
+        for (const m of chart.models) { const v = data[m]?.[mk]; if (v != null && v > mx) mx = v; }
+        if (mx > -Infinity) best[mk] = mx;
+    }
+
+    for (const model of chart.models) {
+        html += `<tr><td class="ct-model">${esc(model)}</td>`;
+        for (const mk of chart.metrics) {
+            const v = data[model]?.[mk];
+            if (v == null) { html += '<td style="color:#4b5563;">—</td>'; }
+            else {
+                const cls = best[mk] === v ? 'ct-best' : '';
+                html += `<td class="${cls}">${formatVal(v)}</td>`;
+            }
+        }
+        html += '</tr>';
+    }
+    html += '</tbody></table></div>';
+    container.innerHTML = html;
+}
+
+/* ── PIVOT CHART ───────────────────────────────── */
+function renderPivotChart(container, chart, data) {
+    // Metrics as rows, models as columns (transposed)
+    let html = '<div class="chart-table-wrap"><table><thead><tr><th>Metric</th>';
+    for (const model of chart.models) {
+        html += `<th>${esc(model)}</th>`;
+    }
+    html += '</tr></thead><tbody>';
+
+    // Group metrics by family
+    const grouped = {};
+    for (const mk of chart.metrics) {
+        const fam = metricFamily(mk);
+        if (!grouped[fam]) grouped[fam] = [];
+        grouped[fam].push(mk);
+    }
+
+    for (const fam of Object.keys(grouped).sort()) {
+        if (Object.keys(grouped).length > 1) {
+            html += `<tr><td class="ct-pivot-hdr" colspan="${chart.models.length + 1}">${esc(fam)}</td></tr>`;
+        }
+        for (const mk of grouped[fam]) {
+            // Find best in this row
+            let mx = -Infinity;
+            for (const m of chart.models) { const v = data[m]?.[mk]; if (v != null && v > mx) mx = v; }
+
+            html += `<tr><td class="ct-model">${esc(metricDisplayName(mk))}</td>`;
+            for (const model of chart.models) {
+                const v = data[model]?.[mk];
+                if (v == null) { html += '<td style="color:#4b5563;">—</td>'; }
+                else {
+                    const cls = mx === v ? 'ct-best' : '';
+                    html += `<td class="${cls}">${formatVal(v)}</td>`;
+                }
+            }
+            html += '</tr>';
+        }
+    }
+    html += '</tbody></table></div>';
+    container.innerHTML = html;
+}
+
+/* ── DRAG TO REORDER ───────────────────────────── */
+let dragChartId = null;
+
+function initDragGrips() {
+    document.querySelectorAll('.chart-drag-grip').forEach(grip => {
+        grip.addEventListener('mousedown', onDragStart);
+        grip.addEventListener('touchstart', onDragStart, { passive: false });
+    });
+}
+
+function onDragStart(e) {
+    e.preventDefault();
+    const chartId = e.currentTarget.dataset.chartId;
+    const card = document.getElementById('cc-' + chartId);
+    if (!card) return;
+    dragChartId = chartId;
+    card.classList.add('dragging-card');
+
+    function onMove(ev) {
+        const cx = ev.touches ? ev.touches[0].clientX : ev.clientX;
+        const cy = ev.touches ? ev.touches[0].clientY : ev.clientY;
+        // Find card under cursor
+        const el = document.elementFromPoint(cx, cy);
+        const targetCard = el ? el.closest('.chart-card') : null;
+        document.querySelectorAll('.chart-card.drop-target').forEach(c => c.classList.remove('drop-target'));
+        if (targetCard && targetCard.dataset.chartId && targetCard.dataset.chartId !== chartId) {
+            targetCard.classList.add('drop-target');
+        }
+    }
+
+    function onUp(ev) {
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+        document.removeEventListener('touchmove', onMove);
+        document.removeEventListener('touchend', onUp);
+        card.classList.remove('dragging-card');
+
+        // Find drop target
+        const cx = ev.changedTouches ? ev.changedTouches[0].clientX : ev.clientX;
+        const cy = ev.changedTouches ? ev.changedTouches[0].clientY : ev.clientY;
+        const el = document.elementFromPoint(cx, cy);
+        const targetCard = el ? el.closest('.chart-card') : null;
+        document.querySelectorAll('.chart-card.drop-target').forEach(c => c.classList.remove('drop-target'));
+
+        if (targetCard && targetCard.dataset.chartId && targetCard.dataset.chartId !== chartId) {
+            // Swap positions in saved charts array
+            const charts = loadSavedCharts();
+            const srcIdx = charts.findIndex(c => c.id === chartId);
+            const dstIdx = charts.findIndex(c => c.id === targetCard.dataset.chartId);
+            if (srcIdx !== -1 && dstIdx !== -1) {
+                const [moved] = charts.splice(srcIdx, 1);
+                charts.splice(dstIdx, 0, moved);
+                persistCharts(charts);
+                renderSavedCharts();
+            }
+        }
+        dragChartId = null;
+    }
+
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+    document.addEventListener('touchmove', onMove, { passive: false });
+    document.addEventListener('touchend', onUp);
 }
 </script>
 </body>

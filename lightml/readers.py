@@ -125,6 +125,25 @@ def all_metrics_with_scores(db):
     return [(r[0], r[1]) for r in rows]
 
 
+def common_metrics_with_scores(db, model_a, model_b):
+    with sqlite3.connect(db) as conn:
+        rows = conn.execute("""
+            SELECT DISTINCT ma.family, ma.metric_name
+            FROM detailed_scores da
+            JOIN metrics ma ON da.metric_id = ma.id
+            JOIN model moa ON ma.model_id = moa.id
+            WHERE moa.model_name = ?
+            INTERSECT
+            SELECT DISTINCT mb.family, mb.metric_name
+            FROM detailed_scores db2
+            JOIN metrics mb ON db2.metric_id = mb.id
+            JOIN model mob ON mb.model_id = mob.id
+            WHERE mob.model_name = ?
+            ORDER BY 1, 2
+        """, (model_a, model_b)).fetchall()
+    return [(r[0], r[1]) for r in rows]
+
+
 
 def model_exists(db: str, model_name: str) -> bool:
     """Check whether a model is registered (any run)."""
