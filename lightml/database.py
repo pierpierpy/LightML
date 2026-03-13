@@ -33,6 +33,8 @@ def initialize_database(registry_path: str, metrics_schema, db_name: str) -> Pat
             model_name TEXT NOT NULL,
             path TEXT NOT NULL,
             parent_id INTEGER,
+            notes TEXT,
+            hidden INTEGER NOT NULL DEFAULT 0,
             run_id INTEGER NOT NULL,
             FOREIGN KEY(parent_id)
                 REFERENCES model(id)
@@ -207,6 +209,7 @@ def delete_model(db: str, model_name: str):
     
 def migrate_database(db: str):
     """Apply pending migrations to an existing database."""
+    result = {}
     with sqlite3.connect(db) as conn:
         conn.execute("PRAGMA foreign_keys = ON;")
 
@@ -228,6 +231,29 @@ def migrate_database(db: str):
                 );
             """)
             conn.commit()
-            return {"detailed_scores": "created"}
+            result["detailed_scores"] = "created"
+        else:
+            result["detailed_scores"] = "ok"
 
-        return {"detailed_scores": "already exists"}
+        # Migration 2: add notes column to model table
+        has_model = conn.execute("""
+            SELECT COUNT(*) FROM sqlite_master
+            WHERE type='table' AND name='model'
+        """).fetchone()[0]
+        if has_model:
+            cols = [row[1] for row in conn.execute("PRAGMA table_info(model)").fetchall()]
+            if "notes" not in cols:
+                conn.execute("ALTER TABLE model ADD COLUMN notes TEXT;")
+                conn.commit()
+                result["model.notes"] = "added"
+            else:
+                result["model.notes"] = "ok"
+
+            if "hidden" not in cols:
+                conn.execute("ALTER TABLE model ADD COLUMN hidden INTEGER NOT NULL DEFAULT 0;")
+                conn.commit()
+                result["model.hidden"] = "added"
+            else:
+                result["model.hidden"] = "ok"
+
+        return result

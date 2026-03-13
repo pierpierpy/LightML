@@ -42,6 +42,10 @@ def launch(db_path: str, host: str = "0.0.0.0", port: int = 5050):
     if not db.exists():
         raise FileNotFoundError(f"Database not found: {db}")
 
+    # Run migrations on existing databases
+    from lightml.database import migrate_database
+    migrate_database(str(db))
+
     print(f"\n  LightML Dashboard")
     print(f"  DB:   {db}")
     print(f"  URL:  http://{host}:{port}\n")

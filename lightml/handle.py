@@ -18,6 +18,10 @@ class LightMLHandle:
         self.db = db
         self.run_name = run_name
 
+        # auto-migrate schema for older databases
+        from lightml.database import migrate_database
+        migrate_database(self.db)
+
         # crea run se non esiste
         if self.run_name is not None:
             create_run(

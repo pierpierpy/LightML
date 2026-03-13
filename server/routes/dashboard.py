@@ -10,9 +10,11 @@ import json
 import sqlite3
 import tempfile
 from pathlib import Path
+from typing import Optional
 
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
+from pydantic import BaseModel
 
 from lightml.export import export_excel
 from lightml.compare import compare_models
@@ -55,7 +57,7 @@ async def get_data(request: Request):
 
     models = _query(db, """
         SELECT m.id, m.model_name, m.path, m.parent_id, m.run_id,
-               r.run_name
+               r.run_name, m.notes, m.hidden
         FROM model m
         JOIN run r ON m.run_id = r.id
         ORDER BY m.id
@@ -116,7 +118,7 @@ async def get_table(request: Request, family: str | None = None, run_id: int | N
     # Build rows: models
     if run_id:
         model_rows = _query(db, """
-            SELECT m.id, m.model_name, m.path, m.parent_id, r.run_name
+            SELECT m.id, m.model_name, m.path, m.parent_id, m.hidden, m.notes, r.run_name
             FROM model m
             JOIN run r ON m.run_id = r.id
             WHERE m.run_id = ?
@@ -124,7 +126,7 @@ async def get_table(request: Request, family: str | None = None, run_id: int | N
         """, (run_id,))
     else:
         model_rows = _query(db, """
-            SELECT m.id, m.model_name, m.path, m.parent_id, r.run_name
+            SELECT m.id, m.model_name, m.path, m.parent_id, m.hidden, m.notes, r.run_name
             FROM model m
             JOIN run r ON m.run_id = r.id
             ORDER BY m.id
@@ -162,6 +164,8 @@ async def get_table(request: Request, family: str | None = None, run_id: int | N
             "run": mdl["run_name"],
             "path": mdl["path"],
             "parent_id": mdl["parent_id"],
+            "hidden": bool(mdl.get("hidden", 0)),
+            "notes": mdl.get("notes") or "",
             "metrics": model_metrics.get(mdl["id"], {}),
         }
         rows.append(row)
@@ -195,7 +199,7 @@ async def get_graph(request: Request):
 
     models = _query(db, """
         SELECT m.id, m.model_name, m.path, m.parent_id, m.run_id,
-               r.run_name
+               r.run_name, m.notes, m.hidden
         FROM model m
         JOIN run r ON m.run_id = r.id
         ORDER BY m.id
@@ -244,9 +248,12 @@ async def get_graph(request: Request):
         nodes.append({
             "id": m["model_name"],
             "type": "model",
+            "model_id": m["id"],
             "path": m["path"],
             "run": m["run_name"],
             "parent": id_to_name.get(m["parent_id"]),
+            "notes": m.get("notes") or "",
+            "hidden": bool(m.get("hidden", 0)),
             "score": round(avg_score, 2),
             "metrics": metrics,
             "group": m["run_name"],
@@ -328,3 +335,68 @@ async def api_compare(
         return JSONResponse(result.to_dict())
     except ValueError as e:
         return JSONResponse({"error": str(e)}, status_code=404)
+
+
+# ─────────────────────────────────────────────
+# Model mutation endpoints
+# ─────────────────────────────────────────────
+
+class SetParentBody(BaseModel):
+    parent_name: Optional[str] = None  # None to clear parent
+
+class SetNotesBody(BaseModel):
+    notes: str
+
+
+@router.patch("/api/model/{model_id}/parent")
+async def set_parent(model_id: int, body: SetParentBody, request: Request):
+    db = _db(request)
+    with sqlite3.connect(db) as conn:
+        conn.execute("PRAGMA foreign_keys = ON;")
+        # Verify model exists
+        row = conn.execute("SELECT id, run_id FROM model WHERE id = ?", (model_id,)).fetchone()
+        if not row:
+            return JSONResponse({"error": "Model not found"}, status_code=404)
+
+        if body.parent_name is None:
+            conn.execute("UPDATE model SET parent_id = NULL WHERE id = ?", (model_id,))
+        else:
+            parent = conn.execute(
+                "SELECT id FROM model WHERE model_name = ? AND run_id = ?",
+                (body.parent_name, row[1]),
+            ).fetchone()
+            if not parent:
+                return JSONResponse({"error": f"Parent '{body.parent_name}' not found in same run"}, status_code=404)
+            if parent[0] == model_id:
+                return JSONResponse({"error": "Cannot set a model as its own parent"}, status_code=400)
+            conn.execute("UPDATE model SET parent_id = ? WHERE id = ?", (parent[0], model_id))
+        conn.commit()
+    return JSONResponse({"ok": True})
+
+
+@router.patch("/api/model/{model_id}/notes")
+async def set_notes(model_id: int, body: SetNotesBody, request: Request):
+    db = _db(request)
+    with sqlite3.connect(db) as conn:
+        row = conn.execute("SELECT id FROM model WHERE id = ?", (model_id,)).fetchone()
+        if not row:
+            return JSONResponse({"error": "Model not found"}, status_code=404)
+        conn.execute("UPDATE model SET notes = ? WHERE id = ?", (body.notes, model_id))
+        conn.commit()
+    return JSONResponse({"ok": True})
+
+
+class SetHiddenBody(BaseModel):
+    hidden: bool
+
+
+@router.patch("/api/model/{model_id}/hidden")
+async def set_hidden(model_id: int, body: SetHiddenBody, request: Request):
+    db = _db(request)
+    with sqlite3.connect(db) as conn:
+        row = conn.execute("SELECT id FROM model WHERE id = ?", (model_id,)).fetchone()
+        if not row:
+            return JSONResponse({"error": "Model not found"}, status_code=404)
+        conn.execute("UPDATE model SET hidden = ? WHERE id = ?", (int(body.hidden), model_id))
+        conn.commit()
+    return JSONResponse({"ok": True})
