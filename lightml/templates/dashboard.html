@@ -985,6 +985,64 @@ tr.row-selected td:first-child { border-left: 3px solid #3b82f6; }
     color: #60a5fa;
     transform: rotate(90deg);
 }
+/* ============================== SAVED FILTERS ============================== */
+.saved-filter-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 12px;
+    background: rgba(52, 211, 153, 0.12);
+    border: 1px solid rgba(52, 211, 153, 0.3);
+    border-radius: 20px;
+    font-size: 11px;
+    color: #6ee7b7;
+    cursor: pointer;
+    user-select: none;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+.saved-filter-chip:hover {
+    background: rgba(52, 211, 153, 0.25);
+    border-color: rgba(52, 211, 153, 0.5);
+    transform: translateY(-1px);
+}
+.saved-filter-chip.active {
+    background: rgba(52, 211, 153, 0.3);
+    border-color: #34d399;
+    box-shadow: 0 0 8px rgba(52, 211, 153, 0.2);
+}
+.saved-filter-chip .sf-remove {
+    background: none;
+    border: none;
+    color: #6b7280;
+    cursor: pointer;
+    font-size: 14px;
+    padding: 0 2px;
+    line-height: 1;
+    transition: color 0.15s;
+}
+.saved-filter-chip .sf-remove:hover { color: #f87171; }
+.save-filter-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    background: rgba(52, 211, 153, 0.1);
+    border: 1px dashed rgba(52, 211, 153, 0.4);
+    border-radius: 50%;
+    color: #6ee7b7;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+    flex-shrink: 0;
+}
+.save-filter-btn:hover {
+    background: rgba(52, 211, 153, 0.25);
+    border-color: #34d399;
+    transform: scale(1.1);
+}
+
 /* Presets + controls row */
 .customize-controls {
     display: flex;
@@ -1494,6 +1552,11 @@ tr.row-selected td:first-child { border-left: 3px solid #3b82f6; }
                 <span class="chip-label">Models</span>
                 <div class="chip-bar" id="modelChipBar"></div>
                 <button class="add-chip-btn" onclick="openBuilder('model')" title="Add/remove models">+</button>
+                <button class="save-filter-btn" onclick="saveCurrentFilter()" title="Save current model filter">💾</button>
+            </div>
+            <div class="chip-section" id="savedFilterSection" style="display:none;">
+                <span class="chip-label">Filters</span>
+                <div class="chip-bar" id="savedFilterBar"></div>
             </div>
             <div class="customize-controls">
                 <input class="search-box" type="text" id="searchBox" placeholder="Search models..." oninput="renderTable()" style="width:160px;">
@@ -1715,6 +1778,7 @@ async function refresh() {
         populateRuns();
         populateTabs();
         initFilters();
+        renderSavedFilters();
         renderStats();
         await loadTable();
 
@@ -2918,6 +2982,84 @@ function builderSelectNone() {
         renderTable();
     }
     renderBuilderItems(document.getElementById('builderSearch').value);
+}
+
+/* ======================================================================
+   SAVED FILTERS (localStorage-backed)
+   ====================================================================== */
+let activeFilterName = null;
+
+function filtersStorageKey() {
+    return 'lightml_filters_' + (DATA ? DATA.db_name : 'default');
+}
+
+function loadSavedFilters() {
+    try { return JSON.parse(localStorage.getItem(filtersStorageKey()) || '[]'); }
+    catch { return []; }
+}
+
+function persistFilters(filters) {
+    localStorage.setItem(filtersStorageKey(), JSON.stringify(filters));
+}
+
+function saveCurrentFilter() {
+    const models = [...visibleModels];
+    if (!models.length) { alert('No models selected to save.'); return; }
+    if (models.length === DATA.models.length) { alert('All models are selected — filter would have no effect.'); return; }
+    const name = prompt('Filter name:');
+    if (!name || !name.trim()) return;
+    const filters = loadSavedFilters();
+    const existing = filters.findIndex(f => f.name === name.trim());
+    const entry = { name: name.trim(), models };
+    if (existing >= 0) filters[existing] = entry;
+    else filters.push(entry);
+    persistFilters(filters);
+    activeFilterName = name.trim();
+    renderSavedFilters();
+}
+
+function applySavedFilter(name) {
+    const filters = loadSavedFilters();
+    const f = filters.find(x => x.name === name);
+    if (!f) return;
+    if (activeFilterName === name) {
+        // Toggle off: restore all models
+        activeFilterName = null;
+        visibleModels.clear();
+        DATA.models.forEach(m => visibleModels.add(m.model_name));
+    } else {
+        activeFilterName = name;
+        visibleModels.clear();
+        f.models.forEach(m => visibleModels.add(m));
+    }
+    renderModelChips();
+    renderTable();
+    renderSavedFilters();
+}
+
+function deleteSavedFilter(name, e) {
+    e.stopPropagation();
+    const filters = loadSavedFilters().filter(f => f.name !== name);
+    persistFilters(filters);
+    if (activeFilterName === name) activeFilterName = null;
+    renderSavedFilters();
+}
+
+function renderSavedFilters() {
+    const bar = document.getElementById('savedFilterBar');
+    const section = document.getElementById('savedFilterSection');
+    if (!bar || !section) return;
+    const filters = loadSavedFilters();
+    if (!filters.length) { section.style.display = 'none'; return; }
+    section.style.display = '';
+    bar.innerHTML = filters.map(f => {
+        const cls = f.name === activeFilterName ? 'saved-filter-chip active' : 'saved-filter-chip';
+        return `<div class="${cls}" onclick="applySavedFilter('${esc(f.name)}')" title="${f.models.length} models">
+            <span>🏷️ ${esc(f.name)}</span>
+            <span style="font-size:9px;color:#9ca3af;">(${f.models.length})</span>
+            <button class="sf-remove" onclick="deleteSavedFilter('${esc(f.name)}', event)" title="Delete filter">&times;</button>
+        </div>`;
+    }).join('');
 }
 
 /* ======================================================================
