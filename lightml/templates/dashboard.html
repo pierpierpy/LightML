@@ -1833,12 +1833,23 @@ function populateTabs() {
    ====================================================================== */
 function renderStats() {
     const bar = document.getElementById('statsBar');
+    const hiddenIds = new Set(DATA.models.filter(m => m.hidden).map(m => m.id));
+    const visibleModels = DATA.models.length - hiddenIds.size;
+    const visibleCkpts = DATA.checkpoints.filter(c => !hiddenIds.has(c.model_id)).length;
+    const visibleMetrics = DATA.metrics.filter(me => {
+        if (me.model_id && hiddenIds.has(me.model_id)) return false;
+        if (me.checkpoint_id) {
+            const ck = DATA.checkpoints.find(c => c.id === me.checkpoint_id);
+            if (ck && hiddenIds.has(ck.model_id)) return false;
+        }
+        return true;
+    }).length;
     const stats = [
-        { label: 'Runs',        value: DATA.runs.length,        cls: '' },
-        { label: 'Models',      value: DATA.models.length,      cls: 'green' },
-        { label: 'Checkpoints', value: DATA.checkpoints.length, cls: 'amber' },
-        { label: 'Metrics',     value: DATA.metrics.length,     cls: 'purple' },
-        { label: 'Families',    value: DATA.families.length,    cls: '' },
+        { label: 'Runs',        value: DATA.runs.length,   cls: '' },
+        { label: 'Models',      value: visibleModels,      cls: 'green' },
+        { label: 'Checkpoints', value: visibleCkpts,       cls: 'amber' },
+        { label: 'Metrics',     value: visibleMetrics,     cls: 'purple' },
+        { label: 'Families',    value: DATA.families.length, cls: '' },
     ];
     bar.innerHTML = stats.map(s => `
         <div class="stat-card">
