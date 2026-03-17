@@ -387,6 +387,26 @@ def get_top_models(db, family, metric, n=10, run_name=None, include_hidden=False
             for i, r in enumerate(rows)]
 
 
+def list_model_names(db, include_hidden=False):
+    hidden_filter = "" if include_hidden else "WHERE hidden = 0"
+    with sqlite3.connect(db) as conn:
+        rows = conn.execute(f"""
+            SELECT DISTINCT model_name FROM model {hidden_filter}
+            ORDER BY model_name
+        """).fetchall()
+    return [r[0] for r in rows]
+
+
+def list_metrics_in_family(db, family):
+    with sqlite3.connect(db) as conn:
+        rows = conn.execute("""
+            SELECT DISTINCT metric_name
+            FROM metrics WHERE family = ?
+            ORDER BY metric_name
+        """, (family,)).fetchall()
+    return [r[0] for r in rows]
+
+
 def get_metric_value_any_run(db, model_name, family, metric_name):
     with sqlite3.connect(db) as conn:
         row = conn.execute("""

@@ -20,6 +20,7 @@ from lightml.readers import (
     list_all_models, list_all_runs, list_all_families,
     get_db_summary, get_model_detail, get_top_models,
     get_metric_value_any_run,
+    list_model_names, list_metrics_in_family,
 )
 from lightml.database import (
     migrate_database, rename_model, update_model_notes, prune_database,
@@ -63,6 +64,73 @@ def resolve_db(db_arg: str | None) -> str:
 
 
 # =====================================================
+# INTERACTIVE PICKERS
+# =====================================================
+
+def pick_one(prompt, options):
+    """Show a numbered list and let the user pick one item."""
+    print()
+    for i, opt in enumerate(options, 1):
+        print(f"    {i}. {opt}")
+    while True:
+        try:
+            choice = int(input(f"\n  {prompt}: ")) - 1
+            if 0 <= choice < len(options):
+                return options[choice]
+            print(f"  Enter a number between 1 and {len(options)}")
+        except (ValueError, EOFError):
+            print("  Enter a valid number")
+
+
+def pick_many(prompt, options, min_count=2):
+    """Show a numbered list and let the user pick multiple items (comma-separated or ranges)."""
+    print()
+    for i, opt in enumerate(options, 1):
+        print(f"    {i}. {opt}")
+    while True:
+        raw = input(f"\n  {prompt} (e.g. 1,3,5 or 1-3): ").strip()
+        selected = set()
+        for part in raw.split(','):
+            part = part.strip()
+            if '-' in part:
+                try:
+                    lo, hi = part.split('-', 1)
+                    for i in range(int(lo) - 1, int(hi)):
+                        if 0 <= i < len(options):
+                            selected.add(i)
+                except ValueError:
+                    continue
+            else:
+                try:
+                    idx = int(part) - 1
+                    if 0 <= idx < len(options):
+                        selected.add(idx)
+                except ValueError:
+                    continue
+        if len(selected) >= min_count:
+            return [options[i] for i in sorted(selected)]
+        print(f"  Select at least {min_count} item(s)")
+
+
+def _require_models(db, min_count=1):
+    """Fetch model names, exit if not enough."""
+    models = list_model_names(db)
+    if len(models) < min_count:
+        print(f"\n  Need at least {min_count} model(s), found {len(models)}.\n")
+        raise SystemExit(1)
+    return models
+
+
+def _require_families(db):
+    """Fetch family list, exit if empty."""
+    families = list_all_families(db)
+    if not families:
+        print("\n  No metric families found.\n")
+        raise SystemExit(1)
+    return families
+
+
+# =====================================================
 # EXISTING COMMANDS
 # =====================================================
 
@@ -89,18 +157,6 @@ def cmd_stats(args):
         print("  Log metrics with the 'scores' parameter to use statistical tests.\n")
         return
 
-    def pick(prompt, options):
-        for i, opt in enumerate(options, 1):
-            print(f"    {i}. {opt}")
-        while True:
-            try:
-                choice = int(input(f"\n  {prompt}: ")) - 1
-                if 0 <= choice < len(options):
-                    return options[choice]
-                print(f"  Please enter a number between 1 and {len(options)}")
-            except ValueError:
-                print(f"  Please enter a valid number")
-
     if not args.model_a or not args.model_b:
         models = all_models_with_scores(db, include_hidden=getattr(args, 'include_hidden', False))
         if len(models) < 2:
@@ -109,10 +165,10 @@ def cmd_stats(args):
             return
         print(f"\n  Models with detailed scores:")
         print(f"\n  Select model A:")
-        model_a = pick("Model A", models)
+        model_a = pick_one("Model A", models)
         remaining = [m for m in models if m != model_a]
         print(f"\n  Select model B:")
-        model_b = pick("Model B", remaining)
+        model_b = pick_one("Model B", remaining)
     else:
         model_a = args.model_a
         model_b = args.model_b
@@ -328,16 +384,30 @@ def cmd_export(args):
 def cmd_model_delete(args):
     from lightml.database import delete_model
     db = resolve_db(args.db)
-    result = delete_model(db=db, model_name=args.name)
+    name = args.name
+    if not name:
+        models = _require_models(db)
+        print("  Select model to delete:")
+        name = pick_one("Model", models)
+    result = delete_model(db=db, model_name=name)
     print(result.to_text())
 
 
 def cmd_compare(args):
     db = resolve_db(args.db)
+    model_a = args.model_a
+    model_b = args.model_b
+    if not model_a or not model_b:
+        models = _require_models(db, min_count=2)
+        print("  Select model A:")
+        model_a = pick_one("Model A", models)
+        remaining = [m for m in models if m != model_a]
+        print("\n  Select model B:")
+        model_b = pick_one("Model B", remaining)
     result = compare_models(
         db=db,
-        model_a=args.model_a,
-        model_b=args.model_b,
+        model_a=model_a,
+        model_b=model_b,
         run_name=args.run,
         family=args.family,
     )
@@ -368,9 +438,14 @@ def cmd_scan(args):
 
 def cmd_diff(args):
     db = resolve_db(args.db)
+    model_names = args.models
+    if not model_names:
+        models = _require_models(db, min_count=2)
+        print("  Select models to compare (at least 2):")
+        model_names = pick_many("Models", models, min_count=2)
     data = diff_models(
         db=db,
-        model_names=args.models,
+        model_names=model_names,
         run_name=args.run,
         family=args.family,
     )
@@ -518,10 +593,15 @@ def cmd_summary(args):
 
 def cmd_info(args):
     db   = resolve_db(args.db)
-    info = get_model_detail(db, args.model)
+    model = args.model
+    if not model:
+        models = _require_models(db)
+        print("  Select a model:")
+        model = pick_one("Model", models)
+    info = get_model_detail(db, model)
 
     if info is None:
-        print(f"\n  Model '{args.model}' not found.\n")
+        print(f"\n  Model '{model}' not found.\n")
         raise SystemExit(1)
 
     hidden = " [hidden]" if info['hidden'] else ""
@@ -553,20 +633,33 @@ def cmd_info(args):
 
 def cmd_top(args):
     db      = resolve_db(args.db)
+    family  = args.family
+    metric  = args.metric
+    if not family:
+        families = _require_families(db)
+        print("  Select a metric family:")
+        family = pick_one("Family", [f['family'] for f in families])
+    if not metric:
+        metrics = list_metrics_in_family(db, family)
+        if not metrics:
+            print(f"\n  No metrics in family '{family}'.\n")
+            raise SystemExit(1)
+        print("  Select a metric:")
+        metric = pick_one("Metric", metrics)
     n       = args.n or 10
     results = get_top_models(
-        db, args.family, args.metric, n=n,
+        db, family, metric, n=n,
         run_name=args.run,
         include_hidden=args.include_hidden,
     )
 
     if not results:
-        print(f"\n  No results for family='{args.family}' metric='{args.metric}'.\n")
+        print(f"\n  No results for family='{family}' metric='{metric}'.\n")
         raise SystemExit(1)
 
     name_w = max(len(r['model']) for r in results)
     name_w = max(name_w, 5)
-    print(f"\n  Leaderboard  {args.family} / {args.metric}\n")
+    print(f"\n  Leaderboard  {family} / {metric}\n")
     print(f"  {'#':>3}  {'Model':<{name_w}}  {'Score':>8}  Run")
     print(f"  {'─'*3}  {'─'*name_w}  {'─'*8}  {'─'*20}")
     for r in results:
@@ -575,34 +668,57 @@ def cmd_top(args):
 
 
 def cmd_metric_get(args):
-    db    = resolve_db(args.db)
-    value = get_metric_value_any_run(db, args.model, args.family, args.metric)
+    db     = resolve_db(args.db)
+    model  = args.model
+    family = args.family
+    metric = args.metric
+    if not model:
+        models = _require_models(db)
+        print("  Select a model:")
+        model = pick_one("Model", models)
+    if not family:
+        families = _require_families(db)
+        print("  Select a metric family:")
+        family = pick_one("Family", [f['family'] for f in families])
+    if not metric:
+        metrics = list_metrics_in_family(db, family)
+        if not metrics:
+            print(f"\n  No metrics in family '{family}'.\n")
+            raise SystemExit(1)
+        print("  Select a metric:")
+        metric = pick_one("Metric", metrics)
+    value = get_metric_value_any_run(db, model, family, metric)
 
     if value is None:
         if not args.raw:
-            print(f"  Not found: {args.model} / {args.family} / {args.metric}")
+            print(f"  Not found: {model} / {family} / {metric}")
         raise SystemExit(1)
 
     if args.raw:
         print(value)
     else:
-        print(f"\n  {args.model}  {args.family}/{args.metric} = {value:.4f}\n")
+        print(f"\n  {model}  {family}/{metric} = {value:.4f}\n")
 
 
 def cmd_notes(args):
     db = resolve_db(args.db)
+    model = args.model
+    if not model:
+        models = _require_models(db)
+        print("  Select a model:")
+        model = pick_one("Model", models)
 
     if args.set is not None:
         try:
-            update_model_notes(db, args.model, args.set)
-            print(f"  Notes updated for '{args.model}'.")
+            update_model_notes(db, model, args.set)
+            print(f"  Notes updated for '{model}'.")
         except ValueError as e:
             print(f"  Error: {e}")
             raise SystemExit(1)
     else:
-        info = get_model_detail(db, args.model)
+        info = get_model_detail(db, model)
         if info is None:
-            print(f"\n  Model '{args.model}' not found.\n")
+            print(f"\n  Model '{model}' not found.\n")
             raise SystemExit(1)
         notes = info['notes'] or "(no notes)"
         print(f"\n  {info['name']}: {notes}\n")
@@ -610,9 +726,20 @@ def cmd_notes(args):
 
 def cmd_rename(args):
     db = resolve_db(args.db)
+    old = args.old
+    if not old:
+        models = _require_models(db)
+        print("  Select model to rename:")
+        old = pick_one("Model", models)
+    new = args.new
+    if not new:
+        new = input("\n  New name: ").strip()
+        if not new:
+            print("  Name cannot be empty.")
+            raise SystemExit(1)
     try:
-        rename_model(db, args.old, args.new)
-        print(f"  Renamed '{args.old}' → '{args.new}'")
+        rename_model(db, old, new)
+        print(f"  Renamed '{old}' → '{new}'")
     except ValueError as e:
         print(f"  Error: {e}")
         raise SystemExit(1)
@@ -766,7 +893,7 @@ def main():
     # ── model-delete ──
     p_mdel = subparsers.add_parser("model-delete", help="Delete a model and all related data")
     p_mdel.add_argument("--db", default=None)
-    p_mdel.add_argument("--name", required=True)
+    p_mdel.add_argument("--name", default=None, help="Model name (interactive if omitted)")
     p_mdel.set_defaults(func=cmd_model_delete)
 
     # ── checkpoint-register ──
@@ -809,7 +936,8 @@ def main():
     # ── diff ──
     p_diff = subparsers.add_parser("diff", help="Side-by-side metric comparison for N models")
     p_diff.add_argument("--db", default=None)
-    p_diff.add_argument("--models", nargs="+", required=True)
+    p_diff.add_argument("--models", nargs="+", default=None,
+                        help="Model names (interactive if omitted)")
     p_diff.add_argument("--run")
     p_diff.add_argument("--family")
     p_diff.add_argument("--no-color", action="store_true")
@@ -818,8 +946,8 @@ def main():
     # ── compare ──
     p_cmp = subparsers.add_parser("compare", help="Compare metrics between two models")
     p_cmp.add_argument("--db", default=None)
-    p_cmp.add_argument("--model-a", required=True)
-    p_cmp.add_argument("--model-b", required=True)
+    p_cmp.add_argument("--model-a", default=None, help="Baseline model (interactive if omitted)")
+    p_cmp.add_argument("--model-b", default=None, help="Candidate model (interactive if omitted)")
     p_cmp.add_argument("--run")
     p_cmp.add_argument("--family")
     p_cmp.set_defaults(func=cmd_compare)
@@ -878,14 +1006,14 @@ def main():
     # ── info ──
     p_info = subparsers.add_parser("info", help="Detailed info for a single model")
     p_info.add_argument("--db", default=None)
-    p_info.add_argument("--model", required=True, help="Model name")
+    p_info.add_argument("--model", default=None, help="Model name (interactive if omitted)")
     p_info.set_defaults(func=cmd_info)
 
     # ── top ──
     p_top = subparsers.add_parser("top", help="Leaderboard: rank models by a metric")
     p_top.add_argument("--db", default=None)
-    p_top.add_argument("--family", required=True, help="Metric family")
-    p_top.add_argument("--metric", required=True, help="Metric name")
+    p_top.add_argument("--family", default=None, help="Metric family (interactive if omitted)")
+    p_top.add_argument("--metric", default=None, help="Metric name (interactive if omitted)")
     p_top.add_argument("--n", type=int, default=10, help="Number of results (default: 10)")
     p_top.add_argument("--run", help="Filter to a specific run")
     p_top.add_argument("--include-hidden", action="store_true")
@@ -894,9 +1022,9 @@ def main():
     # ── metric-get ──
     p_mget = subparsers.add_parser("metric-get", help="Read a single metric value (scriptable)")
     p_mget.add_argument("--db", default=None)
-    p_mget.add_argument("--model", required=True)
-    p_mget.add_argument("--family", required=True)
-    p_mget.add_argument("--metric", required=True)
+    p_mget.add_argument("--model", default=None, help="Model (interactive if omitted)")
+    p_mget.add_argument("--family", default=None, help="Family (interactive if omitted)")
+    p_mget.add_argument("--metric", default=None, help="Metric (interactive if omitted)")
     p_mget.add_argument("--raw", action="store_true",
                         help="Print only the numeric value (useful in scripts)")
     p_mget.set_defaults(func=cmd_metric_get)
@@ -904,7 +1032,7 @@ def main():
     # ── notes ──
     p_notes = subparsers.add_parser("notes", help="Read or write notes on a model")
     p_notes.add_argument("--db", default=None)
-    p_notes.add_argument("--model", required=True)
+    p_notes.add_argument("--model", default=None, help="Model (interactive if omitted)")
     p_notes.add_argument("--set", metavar="TEXT", default=None,
                          help="Set notes text (omit to read)")
     p_notes.set_defaults(func=cmd_notes)
@@ -912,8 +1040,8 @@ def main():
     # ── rename ──
     p_rename = subparsers.add_parser("rename", help="Rename a model")
     p_rename.add_argument("--db", default=None)
-    p_rename.add_argument("--old", required=True, help="Current model name")
-    p_rename.add_argument("--new", required=True, help="New model name")
+    p_rename.add_argument("--old", default=None, help="Current model name (interactive if omitted)")
+    p_rename.add_argument("--new", default=None, help="New model name (prompted if omitted)")
     p_rename.set_defaults(func=cmd_rename)
 
     # ── prune ──
