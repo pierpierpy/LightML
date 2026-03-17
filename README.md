@@ -35,9 +35,22 @@ lightml init --path ./my_registry --name main
   - [Compare models](#compare-models)
   - [Auto-import (scan)](#auto-import-scan)
 - [CLI Reference](#cli-reference)
+  - [Database resolution (--db is optional)](#database-resolution---db-is-optional)
+  - [Interactive mode](#interactive-mode)
+  - [list — List models, runs, or families](#list--list-models-runs-or-families)
+  - [summary — Quick overview of the registry](#summary--quick-overview-of-the-registry)
+  - [info — Detailed info for a model](#info--detailed-info-for-a-model)
+  - [top — Leaderboard by metric](#top--leaderboard-by-metric)
+  - [metric-get — Read a single metric value](#metric-get--read-a-single-metric-value)
   - [diff — Compare N models side-by-side](#diff--compare-n-models-side-by-side)
+  - [compare — Compare two models](#compare--compare-two-models)
   - [exists — Check if a model or metric exists](#exists--check-if-a-model-or-metric-exists)
   - [stats — Statistical comparison](#stats--statistical-comparison)
+  - [notes — Read or write model notes](#notes--read-or-write-model-notes)
+  - [rename — Rename a model](#rename--rename-a-model)
+  - [prune — Remove empty models and runs](#prune--remove-empty-models-and-runs)
+  - [watch — Continuous scan](#watch--continuous-scan)
+  - [merge — Merge two registries](#merge--merge-two-registries)
   - [migrate — Database migration](#migrate--database-migration)
   - [version — Show version](#version--show-version)
 - [Dashboard (GUI)](#dashboard-gui)
@@ -142,6 +155,7 @@ handle.log_model_metric(
 
 ```bash
 lightml gui --db ./my_registry/main.db --port 5050
+# or: export LIGHTML_DB=./my_registry/main.db && lightml gui
 ```
 
 Open `http://localhost:5050` in your browser.
@@ -502,6 +516,54 @@ This means you can safely re-run evaluation scripts without polluting your datab
 lightml <command> [options]
 ```
 
+### Database resolution (`--db` is optional)
+
+Every command that needs a database accepts `--db`, but you don't have to type it every time. LightML resolves the database in this order:
+
+| Priority | Source | Example |
+|---|---|---|
+| 1 | `--db` argument | `lightml summary --db ./registry/main.db` |
+| 2 | `LIGHTML_DB` environment variable | `export LIGHTML_DB=./registry/main.db` |
+| 3 | `.lightml` config file in the current directory | `echo 'db=./registry/main.db' > .lightml` |
+| 4 | Auto-detect single `*.db` file in the current directory | Just `cd` into the directory containing your `.db` file |
+
+Once configured, all commands become shorter:
+
+```bash
+# Before
+lightml summary --db ./registry/main.db
+lightml top --db ./registry/main.db --family hellaswag --metric acc
+
+# After (with LIGHTML_DB or .lightml set)
+lightml summary
+lightml top --family hellaswag --metric acc
+```
+
+### Interactive mode
+
+Many commands support **interactive selection**: if you omit arguments like `--model`, `--family`, or `--metric`, the CLI shows a numbered list and lets you pick.
+
+```bash
+$ lightml info
+  Select a model:
+
+    1. gemma-9b
+    2. llama-base
+    3. llama-dpo
+    4. llama-sft
+
+  Model: 2
+
+  Model  : llama-base
+  Run    : eval-1
+  Path   : meta-llama/Llama-3-8B
+  ...
+```
+
+Commands with interactive support: `info`, `top`, `metric-get`, `notes`, `rename`, `diff`, `compare`, `model-delete`, `stats`.
+
+All these commands still accept explicit arguments for scripting.
+
 ### `init` — Create a new registry
 
 ```bash
@@ -512,7 +574,6 @@ lightml init --path ./registry --name main [--overwrite]
 
 ```bash
 lightml model-register \
-    --db ./registry/main.db \
     --run my-experiment \
     --name llama-sft \
     --path /models/llama-sft \
@@ -523,7 +584,6 @@ lightml model-register \
 
 ```bash
 lightml checkpoint-register \
-    --db ./registry/main.db \
     --run my-experiment \
     --model llama-sft \
     --step 5000 \
@@ -534,7 +594,6 @@ lightml checkpoint-register \
 
 ```bash
 lightml metric-log \
-    --db ./registry/main.db \
     --run my-experiment \
     --model llama-sft \
     --family mmlu_5shot \
@@ -546,7 +605,7 @@ lightml metric-log \
 ### `export` — Export Excel report
 
 ```bash
-lightml export --db ./registry/main.db [--output report.xlsx]
+lightml export [--output report.xlsx]
 ```
 
 ### `scan` — Auto-import eval results
@@ -555,7 +614,6 @@ Scan a directory tree and bulk-import models + metrics:
 
 ```bash
 lightml scan \
-    --db ./registry/main.db \
     --run lm-eval-run \
     --path ./eval_results \
     --format lm_eval              # or "json"
@@ -565,13 +623,191 @@ lightml scan \
 
 Each immediate subdirectory of `--path` is treated as one model.
 
-### `compare` — Compare two models
+### `list` — List models, runs, or families
 
-Print a side-by-side metric delta table:
+Browse the contents of your registry without opening the dashboard.
 
 ```bash
+# List all models (default)
+lightml list
+
+# List runs
+lightml list runs
+
+# List metric families
+lightml list families
+
+# Filter models by run, include hidden
+lightml list models --run my-experiment --include-hidden
+```
+
+Output:
+```
+  Model                              Run                   Parent                     Notes
+  ───────────────────────────────────  ────────────────────  ─────────────────────────  ────────────────────
+  gemma-9b                            eval-1                —
+  llama-base                          eval-1                —
+  llama-dpo                           eval-1                llama-sft                  DPO with UltraFeedback
+  llama-sft                           eval-1                llama-base
+
+  4 model(s)
+```
+
+### `summary` — Quick overview of the registry
+
+```bash
+lightml summary
+```
+
+Output:
+```
+  main.db
+  ─────────────────────────────────────────────
+  Runs        : 2
+  Models      : 8  (1 hidden)
+  Checkpoints : 3
+  Families    : 4
+  Metrics     : 156
+  Updated     : 2026-03-15
+
+  Runs:
+    eval-1  (5 models)
+    eval-2  (3 models)
+
+  Families:
+    gsm8k  (3 metrics · 5 models)
+    hellaswag  (4 metrics · 8 models)
+    mmlu  (6 metrics · 7 models)
+    winogrande  (2 metrics · 4 models)
+```
+
+### `info` — Detailed info for a model
+
+```bash
+# Specify directly
+lightml info --model llama-sft
+
+# Or pick interactively
+lightml info
+```
+
+Output:
+```
+  Model  : llama-sft
+  Run    : eval-1
+  Path   : my-org/llama-sft
+  Parent : llama-base
+  Children : llama-dpo
+
+  Checkpoints (2):
+    step   1000  /checkpoints/llama-sft/step-1000
+    step   5000  /checkpoints/llama-sft/step-5000
+
+  Metrics (12):
+    [hellaswag]
+      acc                                 0.6300
+      acc_norm                            0.6600
+    [gsm8k]
+      exact_match                         0.5500
+```
+
+### `top` — Leaderboard by metric
+
+Rank models by a specific metric. Family and metric can be selected interactively.
+
+```bash
+# Specify directly
+lightml top --family hellaswag --metric acc --n 5
+
+# Or pick interactively
+lightml top
+```
+
+Output:
+```
+  Leaderboard  hellaswag / acc
+
+    #  Model                Score       Run
+  ───  ───────────────────  ────────  ────────────────────
+  #1   llama-dpo              0.6500  eval-1
+  #2   llama-sft              0.6300  eval-1
+  #3   gemma-9b               0.6100  eval-1
+  #4   llama-base             0.5900  eval-1
+```
+
+### `metric-get` — Read a single metric value
+
+Read one metric value. Useful for scripting with `--raw`.
+
+```bash
+# Interactive
+lightml metric-get
+
+# Explicit
+lightml metric-get --model llama-sft --family hellaswag --metric acc
+#   llama-sft  hellaswag/acc = 0.6300
+
+# Scriptable (just the number)
+lightml metric-get --model llama-sft --family hellaswag --metric acc --raw
+# 0.63
+```
+
+### `diff` — Compare N models side-by-side
+
+Colorized table comparing metrics across two or more models — like `git diff` but for metrics.
+
+```bash
+# Interactive — pick models from a list
+lightml diff
+
+# Explicit
+lightml diff \
+    --models llama-base llama-sft gemma-9b \
+    --run my-experiment           # optional
+    --family "ENG 5-shot"         # optional
+    --no-color                    # optional: disable colors (for piping)
+```
+
+Output:
+```
+  lightml diff — 3 models  (run: my-experiment)
+  ══════════════════════════════════════════════════════════════════════
+  Family       Metric       llama-base     llama-sft      gemma-9b
+  ──────────────────────────────────────────────────────────────────────
+  ENG 5-shot   ARC              0.4430        0.4870        0.5120
+  ENG 5-shot   HellaSwag        0.6950        0.7190        0.7340
+  ENG 5-shot   MMLU             0.5210        0.5620        0.5480
+  ──────────────────────────────────────────────────────────────────────
+  AVG          (3 metrics)      0.5530        0.5893        0.5980
+```
+
+- Best value per metric is highlighted in **green**, worst in **red** (when 3+ models)
+- An **AVG** row summarizes all metrics where every model has a value
+- Missing metrics are shown as `—`
+
+Also available as a Python API:
+```python
+from lightml.diff import diff_models, format_diff
+
+data = diff_models(
+    db="./registry/main.db",
+    model_names=["llama-base", "llama-sft", "gemma-9b"],
+    run_name="my-experiment",
+    family="ENG 5-shot",
+)
+print(format_diff(data))
+```
+
+### `compare` — Compare two models
+
+Print a side-by-side metric delta table. Models can be selected interactively.
+
+```bash
+# Interactive
+lightml compare
+
+# Explicit
 lightml compare \
-    --db ./registry/main.db \
     --model-a llama-base \
     --model-b llama-sft \
     --run my-experiment           # optional
@@ -589,51 +825,6 @@ Output:
   ENG 5-shot         ARC             44.30      48.70      +4.40    +9.9%
   ENG 5-shot         HellaSwag       69.50      71.90      +2.40    +3.5%
   ──────────────────────────────────────────────────────────────────────────
-  ✅ 3 improved  ❌ 0 regressed  ➖ 0 unchanged  ❓ 0 missing
-```
-
-### `diff` — Compare N models side-by-side
-
-Print a colorized table comparing metrics across two or more models — like `git diff` but for metrics. No browser needed.
-
-```bash
-lightml diff \
-    --db ./registry/main.db \
-    --models llama-base llama-sft gemma-9b \
-    --run my-experiment           # optional
-    --family "ENG 5-shot"         # optional
-    --no-color                    # optional: disable colors (for piping)
-```
-
-Output:
-```
-  lightml diff — 3 models  (run: my-experiment)
-  ══════════════════════════════════════════════════════════════════════
-  Family       Metric       llama-base     llama-sft      gemma-9b
-  ──────────────────────────────────────────────────────────────────────
-  ENG 5-shot   ARC              0.4430        0.4870        0.5120    ← green (best)
-  ENG 5-shot   HellaSwag        0.6950        0.7190        0.7340
-  ENG 5-shot   MMLU             0.5210        0.5620        0.5480
-  ──────────────────────────────────────────────────────────────────────
-  AVG          (3 metrics)      0.5530        0.5893        0.5980
-```
-
-- Best value per metric is highlighted in **green**, worst in **red** (when 3+ models)
-- Metrics are grouped by family with blank-line separators
-- An **AVG** row summarizes all metrics where every model has a value
-- Missing metrics are shown as `—`
-
-Also available as a Python API:
-```python
-from lightml.diff import diff_models, format_diff
-
-data = diff_models(
-    db="./registry/main.db",
-    model_names=["llama-base", "llama-sft", "gemma-9b"],
-    run_name="my-experiment",
-    family="ENG 5-shot",
-)
-print(format_diff(data))
 ```
 
 ### `exists` — Check if a model or metric exists
@@ -642,26 +833,24 @@ Check existence with exact names or glob patterns (`*`, `?`). Exit code 0 = foun
 
 ```bash
 # Check if a model exists
-lightml exists --db ./registry/main.db --model llama-sft
+lightml exists --model llama-sft
 
 # Check if a specific metric exists
-lightml exists --db ./registry/main.db --model llama-sft --family eng --metric hellaswag_0shot_acc_norm
+lightml exists --model llama-sft --family eng --metric hellaswag_0shot_acc_norm
 
 # Glob search — find all hellaswag metrics for MIIA models
-lightml exists --db ./registry/main.db --model MIIA* --family eng --metric hella*
+lightml exists --model MIIA* --family eng --metric hella*
 #   ✓ MIIA14B-BASE  eng/hellaswag_0shot_acc_norm = 0.7240  (run: MIIA14B)
-#   ✓ MIIA14B-BASE  eng/hellaswag_5shot_acc_norm = 0.7378  (run: MIIA14B)
 #   ✓ MIIA7B        eng/hellaswag_0shot_acc_norm = 0.7193  (run: MIIA14B)
-#   ...
 #   8 match(es)
 
 # Restrict to a specific run
-lightml exists --db ./registry/main.db --model llama* --family eng --metric mmlu* --run my-experiment
+lightml exists --model llama* --family eng --metric mmlu* --run my-experiment
 ```
 
 Usable in scripts:
 ```bash
-if lightml exists --db ./registry/main.db --model my-model 2>/dev/null; then
+if lightml exists --model my-model 2>/dev/null; then
     echo "Model already registered, skipping"
 fi
 ```
@@ -671,14 +860,11 @@ fi
 Interactively compare two models using McNemar's test and bootstrap confidence intervals. Requires detailed scores (logged with the `scores` parameter).
 
 ```bash
-lightml stats --db ./registry/main.db
-```
+# Fully interactive
+lightml stats
 
-The command walks you through selecting models and metrics interactively. Or specify everything on the command line:
-
-```bash
+# Explicit
 lightml stats \
-    --db ./registry/main.db \
     --model-a llama-base \
     --model-b llama-sft \
     --family hellaswag_0shot \
@@ -705,12 +891,124 @@ Output:
   Result:          Significant (p < 0.05), llama-sft is better
 ```
 
+When multiple metrics are selected, an overview table summarizes all tests at the end.
+
+### `notes` — Read or write model notes
+
+Attach text notes to a model (without opening the dashboard).
+
+```bash
+# Read notes (interactive model selection if --model omitted)
+lightml notes --model llama-sft
+#   llama-sft: trained on 10k examples, lr=1e-4
+
+# Write notes
+lightml notes --model llama-sft --set "trained on 10k examples, lr=1e-4"
+```
+
+### `rename` — Rename a model
+
+Fix typos or update naming conventions.
+
+```bash
+# Interactive
+lightml rename
+
+# Explicit
+lightml rename --old llama-sfft --new llama-sft
+```
+
+### `prune` — Remove empty models and runs
+
+Remove models with no metrics and no checkpoints, and runs with no models.
+
+```bash
+# Preview what would be removed
+lightml prune --dry-run
+
+# Actually remove
+lightml prune
+```
+
+Output:
+```
+  Models (2):
+    - empty-test-model
+    - orphan-model
+
+  Runs (1):
+    - abandoned-run
+
+  Pruned: 2 model(s), 1 run(s)
+```
+
+### `watch` — Continuous scan
+
+Like `scan`, but runs in a loop — useful during training/evaluation to auto-import new results as they appear.
+
+```bash
+lightml watch \
+    --path ./eval_results \
+    --run training-run \
+    --interval 60                     # poll every 60 seconds (default: 30)
+    --format lm_eval                  # or "json"
+    --prefix "eval/"                  # optional
+    --force                           # optional: overwrite
+```
+
+Output:
+```
+  Watching  ./eval_results
+  DB   : ./registry/main.db
+  Run  : training-run  |  Format: lm_eval  |  Interval: 60s
+  Ctrl+C to stop
+
+  [14:32:10] +2 models, +24 metrics
+  [14:33:10] no new data
+  [14:34:10] +1 models, +12 metrics
+```
+
+### `merge` — Merge two registries
+
+Merge all runs, models, and metrics from a source registry into your current one. Useful for combining results from different machines or teammates.
+
+```bash
+lightml merge --src ./other_registry.db
+
+# Overwrite existing metrics (instead of skipping)
+lightml merge --src ./other_registry.db --force
+```
+
+Output:
+```
+  Merging ./other_registry.db → ./registry/main.db
+
+  run 'eval-gpu1': 3 model(s), 45 metric(s)
+  run 'eval-gpu2': 2 model(s), 30 metric(s)
+
+  Done. 5 model(s), 75 metric(s) processed.
+```
+
+Models with the same name are deduplicated (idempotent). Metrics are skipped if they already exist (use `--force` to overwrite).
+
+### `model-delete` — Delete a model
+
+Delete a model and all related data (checkpoints, metrics, detailed scores). Interactive if `--name` is omitted.
+
+```bash
+# Interactive
+lightml model-delete
+
+# Explicit
+lightml model-delete --name llama-sft
+```
+
 ### `migrate` — Database migration
 
 Apply pending schema migrations to an older database (e.g. add the `detailed_scores` table introduced in v1.1.0):
 
 ```bash
-lightml migrate --db ./registry/main.db
+lightml migrate
 ```
 
 ### `version` — Show version
@@ -722,7 +1020,7 @@ lightml version
 ### `gui` — Launch dashboard
 
 ```bash
-lightml gui --db ./registry/main.db [--port 5050] [--host 0.0.0.0]
+lightml gui [--port 5050] [--host 0.0.0.0]
 ```
 
 ---
