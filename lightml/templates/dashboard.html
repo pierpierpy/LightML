@@ -1133,12 +1133,37 @@ tr.row-selected td:first-child { border-left: 3px solid #3b82f6; }
     flex: 1;
     padding: 12px;
     display: flex;
-    align-items: center;
+    flex-direction: column;
+    align-items: stretch;
     justify-content: center;
     overflow: hidden;
     min-height: 0;
 }
-.chart-card-body svg { width: 100%; height: 100%; }
+.chart-card-body svg { width: 100%; flex: 1; min-height: 0; }
+.chart-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 12px;
+    padding: 6px 4px 2px;
+    justify-content: center;
+}
+.chart-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11px;
+    color: #e2e8f0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+.chart-legend-item .swatch {
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+    flex-shrink: 0;
+}
 
 /* ── Chart table (table/pivot type) ── */
 .chart-table-wrap {
@@ -3433,17 +3458,17 @@ function renderRadar(container, chart, data) {
         });
     });
 
-    // Legend
-    const lgH = chart.models.length * 20 + 12;
-    const legend = svg.append('g').attr('transform', `translate(8, ${H - lgH})`);
-    legend.append('rect').attr('width', 200).attr('height', lgH).attr('rx', 6)
-        .attr('fill', 'rgba(15,23,42,0.85)').attr('stroke', '#334155').attr('stroke-width', 1);
+    // Legend (HTML, outside SVG)
+    const legendDiv = document.createElement('div');
+    legendDiv.className = 'chart-legend';
     chart.models.forEach((name, i) => {
-        const lg = legend.append('g').attr('transform', `translate(8, ${i * 20 + 8})`);
-        lg.append('rect').attr('width', 12).attr('height', 12).attr('rx', 3).attr('fill', CHART_COLORS[i % CHART_COLORS.length]);
-        lg.append('text').attr('x', 18).attr('y', 10).attr('font-size', '11px').attr('fill', '#e2e8f0').attr('font-weight', '500')
-            .text(name.length > 25 ? name.slice(0, 22) + '…' : name);
+        const item = document.createElement('span');
+        item.className = 'chart-legend-item';
+        item.title = name;
+        item.innerHTML = `<span class="swatch" style="background:${CHART_COLORS[i % CHART_COLORS.length]}"></span>${esc(name)}`;
+        legendDiv.appendChild(item);
     });
+    container.appendChild(legendDiv);
 }
 
 /* ── BAR CHART (vertical & horizontal) ─────────── */
@@ -3527,17 +3552,17 @@ function renderBarChart(container, chart, data, horizontal) {
         });
     });
 
-    // Legend
-    const lgW = chart.models.length * 160;
-    const legend = svg.append('g').attr('transform', `translate(${margin.left + 4}, 2)`);
-    legend.append('rect').attr('width', Math.min(lgW + 10, W - margin.left)).attr('height', 22).attr('rx', 6)
-        .attr('fill', 'rgba(15,23,42,0.85)').attr('stroke', '#334155').attr('stroke-width', 1);
+    // Legend (HTML, outside SVG)
+    const legendDiv = document.createElement('div');
+    legendDiv.className = 'chart-legend';
     chart.models.forEach((name, i) => {
-        const lg = legend.append('g').attr('transform', `translate(${i * 160 + 6}, 4)`);
-        lg.append('rect').attr('width', 12).attr('height', 12).attr('rx', 3).attr('fill', CHART_COLORS[i % CHART_COLORS.length]);
-        lg.append('text').attr('x', 18).attr('y', 10).attr('font-size', '11px').attr('fill', '#e2e8f0').attr('font-weight', '500')
-            .text(name.length > 18 ? name.slice(0, 15) + '…' : name);
+        const item = document.createElement('span');
+        item.className = 'chart-legend-item';
+        item.title = name;
+        item.innerHTML = `<span class="swatch" style="background:${CHART_COLORS[i % CHART_COLORS.length]}"></span>${esc(name)}`;
+        legendDiv.appendChild(item);
     });
+    container.appendChild(legendDiv);
 }
 
 /* ── TABLE CHART ───────────────────────────────── */

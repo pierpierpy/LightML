@@ -254,3 +254,148 @@ def check_detailed_scores_table(db):
             return "empty"
 
         return "ok"
+
+
+# ─────────────────────────────────────────────
+# LIST / SUMMARY
+# ─────────────────────────────────────────────
+
+def list_all_models(db, run_name=None, include_hidden=False):
+    hidden_filter = "" if include_hidden else "AND mo.hidden = 0"
+    run_filter = "AND r.run_name = ?" if run_name else ""
+    params = []
+    if run_name:
+        params.append(run_name)
+    with sqlite3.connect(db) as conn:
+        rows = conn.execute(f"""
+            SELECT mo.model_name, mo.path, mo.notes, mo.hidden,
+                   r.run_name, pm.model_name AS parent_name
+            FROM model mo
+            JOIN run r ON mo.run_id = r.id
+            LEFT JOIN model pm ON mo.parent_id = pm.id
+            WHERE 1=1 {hidden_filter} {run_filter}
+            ORDER BY r.run_name, mo.model_name
+        """, params).fetchall()
+    return [
+        {"name": r[0], "path": r[1], "notes": r[2],
+         "hidden": bool(r[3]), "run": r[4], "parent": r[5]}
+        for r in rows
+    ]
+
+
+def list_all_runs(db):
+    with sqlite3.connect(db) as conn:
+        rows = conn.execute("""
+            SELECT r.run_name, r.created_at, COUNT(mo.id) AS model_count
+            FROM run r
+            LEFT JOIN model mo ON mo.run_id = r.id
+            GROUP BY r.id
+            ORDER BY r.created_at DESC
+        """).fetchall()
+    return [{"name": r[0], "created_at": r[1], "model_count": r[2]} for r in rows]
+
+
+def list_all_families(db):
+    with sqlite3.connect(db) as conn:
+        rows = conn.execute("""
+            SELECT m.family,
+                   COUNT(DISTINCT m.metric_name) AS metric_count,
+                   COUNT(DISTINCT m.model_id)    AS model_count
+            FROM metrics m
+            GROUP BY m.family
+            ORDER BY m.family
+        """).fetchall()
+    return [{"family": r[0], "metrics": r[1], "models": r[2]} for r in rows]
+
+
+def get_db_summary(db):
+    with sqlite3.connect(db) as conn:
+        n_runs        = conn.execute("SELECT COUNT(*) FROM run").fetchone()[0]
+        n_models      = conn.execute("SELECT COUNT(*) FROM model WHERE hidden = 0").fetchone()[0]
+        n_hidden      = conn.execute("SELECT COUNT(*) FROM model WHERE hidden = 1").fetchone()[0]
+        n_checkpoints = conn.execute("SELECT COUNT(*) FROM checkpoint").fetchone()[0]
+        n_families    = conn.execute("SELECT COUNT(DISTINCT family) FROM metrics").fetchone()[0]
+        n_metrics     = conn.execute("SELECT COUNT(*) FROM metrics").fetchone()[0]
+        last          = conn.execute("SELECT MAX(created_at) FROM run").fetchone()[0]
+    return {
+        "runs": n_runs, "models": n_models, "hidden": n_hidden,
+        "checkpoints": n_checkpoints, "families": n_families,
+        "metrics": n_metrics, "last_updated": last,
+    }
+
+
+def get_model_detail(db, model_name):
+    with sqlite3.connect(db) as conn:
+        row = conn.execute("""
+            SELECT mo.id, mo.model_name, mo.path, mo.notes, mo.hidden,
+                   r.run_name, pm.model_name AS parent_name
+            FROM model mo
+            JOIN run r ON mo.run_id = r.id
+            LEFT JOIN model pm ON mo.parent_id = pm.id
+            WHERE mo.model_name = ?
+            LIMIT 1
+        """, (model_name,)).fetchone()
+        if row is None:
+            return None
+        model_id = row[0]
+        metrics = conn.execute("""
+            SELECT family, metric_name, value
+            FROM metrics
+            WHERE model_id = ?
+            ORDER BY family, metric_name
+        """, (model_id,)).fetchall()
+        checkpoints = conn.execute("""
+            SELECT step, path, created_at
+            FROM checkpoint
+            WHERE model_id = ?
+            ORDER BY step
+        """, (model_id,)).fetchall()
+        children = conn.execute("""
+            SELECT model_name FROM model WHERE parent_id = ?
+            ORDER BY model_name
+        """, (model_id,)).fetchall()
+    return {
+        "name": row[1], "path": row[2], "notes": row[3],
+        "hidden": bool(row[4]), "run": row[5], "parent": row[6],
+        "metrics": [{"family": m[0], "metric": m[1], "value": m[2]} for m in metrics],
+        "checkpoints": [{"step": c[0], "path": c[1], "created_at": c[2]} for c in checkpoints],
+        "children": [c[0] for c in children],
+    }
+
+
+def get_top_models(db, family, metric, n=10, run_name=None, include_hidden=False):
+    hidden_filter = "" if include_hidden else "AND mo.hidden = 0"
+    run_filter = "AND r.run_name = ?" if run_name else ""
+    params = [family, metric]
+    if run_name:
+        params.append(run_name)
+    params.append(n)
+    with sqlite3.connect(db) as conn:
+        rows = conn.execute(f"""
+            SELECT mo.model_name, m.value, r.run_name
+            FROM metrics m
+            JOIN model mo ON m.model_id = mo.id
+            JOIN run r ON mo.run_id = r.id
+            WHERE m.family = ?
+              AND m.metric_name = ?
+              {run_filter}
+              {hidden_filter}
+            ORDER BY m.value DESC
+            LIMIT ?
+        """, params).fetchall()
+    return [{"rank": i + 1, "model": r[0], "value": r[1], "run": r[2]}
+            for i, r in enumerate(rows)]
+
+
+def get_metric_value_any_run(db, model_name, family, metric_name):
+    with sqlite3.connect(db) as conn:
+        row = conn.execute("""
+            SELECT m.value
+            FROM metrics m
+            JOIN model mo ON m.model_id = mo.id
+            WHERE mo.model_name = ?
+              AND m.family = ?
+              AND m.metric_name = ?
+            LIMIT 1
+        """, (model_name, family, metric_name)).fetchone()
+    return row[0] if row else None

@@ -1,4 +1,6 @@
 import argparse
+import os
+import sqlite3
 from pathlib import Path
 
 from lightml.handle import LightMLHandle
@@ -15,29 +17,66 @@ from lightml.readers import (
     check_detailed_scores_table,
     model_exists, metric_exists, run_metric_exists,
     search_entries,
+    list_all_models, list_all_runs, list_all_families,
+    get_db_summary, get_model_detail, get_top_models,
+    get_metric_value_any_run,
 )
-from lightml.database import migrate_database
+from lightml.database import (
+    migrate_database, rename_model, update_model_notes, prune_database,
+)
 
 
 # =====================================================
-# COMMANDS
+# DB RESOLUTION
 # =====================================================
 
+def resolve_db(db_arg: str | None) -> str:
+    """Resolve the database path from multiple sources.
+
+    Priority:
+      1. --db argument
+      2. LIGHTML_DB environment variable
+      3. db= line in .lightml config file in the current directory
+      4. Single *.db file auto-detected in the current directory
+    """
+    if db_arg:
+        return db_arg
+    env = os.environ.get("LIGHTML_DB")
+    if env:
+        return env
+    config = Path(".lightml")
+    if config.exists():
+        for line in config.read_text().strip().splitlines():
+            line = line.strip()
+            if line.startswith("db="):
+                return line[3:].strip()
+    dbs = sorted(Path(".").glob("*.db"))
+    if len(dbs) == 1:
+        return str(dbs[0])
+    print(
+        "\n  Error: no database found. Specify one via:\n"
+        "    --db ./path/to/registry.db\n"
+        "    LIGHTML_DB=./path/to/registry.db\n"
+        "    echo 'db=./path/to/registry.db' > .lightml\n"
+    )
+    raise SystemExit(1)
+
+
+# =====================================================
+# EXISTING COMMANDS
+# =====================================================
 
 def cmd_migrate(args):
-    
-    result = migrate_database(args.db)
+    db = resolve_db(args.db)
+    result = migrate_database(db)
     print(f"\n  Migration complete:")
     for table, status in result.items():
         print(f"    {table}: {status}")
     print()
-    
-    
-def cmd_stats(args):
-    
-    
 
-    db = args.db
+
+def cmd_stats(args):
+    db = resolve_db(args.db)
 
     status = check_detailed_scores_table(db)
     if status == "missing":
@@ -49,7 +88,6 @@ def cmd_stats(args):
         print("\n  No detailed scores found in the database.")
         print("  Log metrics with the 'scores' parameter to use statistical tests.\n")
         return
-
 
     def pick(prompt, options):
         for i, opt in enumerate(options, 1):
@@ -63,9 +101,6 @@ def cmd_stats(args):
             except ValueError:
                 print(f"  Please enter a valid number")
 
-    db = args.db
-
-    # Models (cross-run: list all models with detailed scores)
     if not args.model_a or not args.model_b:
         models = all_models_with_scores(db, include_hidden=getattr(args, 'include_hidden', False))
         if len(models) < 2:
@@ -82,7 +117,6 @@ def cmd_stats(args):
         model_a = args.model_a
         model_b = args.model_b
 
-    # Metric
     if not args.family or not args.metric:
         metrics = common_metrics_with_scores(db, model_a, model_b)
         if not metrics:
@@ -105,7 +139,6 @@ def cmd_stats(args):
             for part in [p.strip() for p in raw.split(',')]:
                 if not part:
                     continue
-                # Number or range: "3" or "3-5"
                 range_match = re.match(r'^(\d+)(?:-(\d+))?$', part)
                 if range_match:
                     lo = int(range_match.group(1)) - 1
@@ -113,12 +146,10 @@ def cmd_stats(args):
                     for i in range(max(0, lo), min(hi + 1, len(labels))):
                         selected_indices.add(i)
                     continue
-                # Family name exact match (e.g. "eng", "ita")
                 fam_matches = [i for i, (f, _) in enumerate(metrics) if f.lower() == part.lower()]
                 if fam_matches:
                     selected_indices.update(fam_matches)
                     continue
-                # Glob/fnmatch pattern against label
                 pat = part if '*' in part or '?' in part else f'*{part}*'
                 for i, lbl in enumerate(labels):
                     if fnmatch.fnmatch(lbl.lower(), pat.lower()):
@@ -135,7 +166,6 @@ def cmd_stats(args):
     else:
         selected_metrics = [(args.family, args.metric)]
 
-    # Run tests for each selected metric
     handle = LightMLHandle(db=db)
     overview = []
     for family, metric in selected_metrics:
@@ -172,19 +202,17 @@ def cmd_stats(args):
         else:
             print(f"  Result:          Not significant")
 
-        # Collect for overview
         if mc["significant"]:
             winner_label = model_a if mc["winner"] == "a" else model_b
         else:
             winner_label = "—"
         overview.append((family, metric, bs["delta"], mc["p_value"], mc["significant"], winner_label))
 
-    # Print overview table when multiple metrics were tested
     if len(overview) > 1:
         metric_col = max(len(f"{f}/{m}") for f, m, *_ in overview)
-        metric_col = max(metric_col, 6)  # min width for "Metric"
+        metric_col = max(metric_col, 6)
         winner_col = max((len(w) for *_, w in overview), default=6)
-        winner_col = max(winner_col, 6)  # min width for "Winner"
+        winner_col = max(winner_col, 6)
 
         hdr_metric = "Metric".ljust(metric_col)
         hdr_delta  = "Delta".center(9)
@@ -214,8 +242,8 @@ def cmd_stats(args):
         print(f"\n  Summary: {n_sig}/{len(overview)} significant — "
               f"{model_a} wins {a_wins}, {model_b} wins {b_wins}")
     print()
-    
-    
+
+
 def cmd_version(args):
     from importlib.metadata import version
     v = version("light-ml-registry")
@@ -228,7 +256,8 @@ def cmd_version(args):
          |___/
                             v{v}
 """)
-    
+
+
 def cmd_init(args):
     registry = RegistryInit(
         registry_path=args.path,
@@ -236,48 +265,28 @@ def cmd_init(args):
         metrics_schema=[],
         overwrite=args.overwrite,
     )
-
     db_path = initialize_registry(registry)
     print(f"Registry created at: {db_path}")
 
 
 def cmd_model_register(args):
-    handle = LightMLHandle(
-        db=args.db,
-        run_name=args.run
-    )
-
-    handle.register_model(
-        model_name=args.name,
-        path=args.path,
-        parent_name=args.parent
-    )
-
+    db = resolve_db(args.db)
+    handle = LightMLHandle(db=db, run_name=args.run)
+    handle.register_model(model_name=args.name, path=args.path, parent_name=args.parent)
     print("Model registered.")
 
 
 def cmd_checkpoint_register(args):
-    handle = LightMLHandle(
-        db=args.db,
-        run_name=args.run
-    )
-
-    handle.register_checkpoint(
-        model_name=args.model,
-        step=args.step,
-        path=args.path
-    )
-
+    db = resolve_db(args.db)
+    handle = LightMLHandle(db=db, run_name=args.run)
+    handle.register_checkpoint(model_name=args.model, step=args.step, path=args.path)
     print("Checkpoint registered.")
 
 
 def cmd_metric_log(args):
     from lightml.metrics import METRIC_INSERTED, METRIC_UPDATED, METRIC_SKIPPED
-
-    handle = LightMLHandle(
-        db=args.db,
-        run_name=args.run
-    )
+    db = resolve_db(args.db)
+    handle = LightMLHandle(db=db, run_name=args.run)
 
     if args.checkpoint:
         result = handle.log_checkpoint_metric(
@@ -305,7 +314,8 @@ def cmd_metric_log(args):
 
 
 def cmd_export(args):
-    db_path = Path(args.db)
+    db = resolve_db(args.db)
+    db_path = Path(db)
 
     if args.output:
         output = Path(args.output)
@@ -317,14 +327,15 @@ def cmd_export(args):
 
 def cmd_model_delete(args):
     from lightml.database import delete_model
-
-    result = delete_model(db=args.db, model_name=args.name)
+    db = resolve_db(args.db)
+    result = delete_model(db=db, model_name=args.name)
     print(result.to_text())
 
 
 def cmd_compare(args):
+    db = resolve_db(args.db)
     result = compare_models(
-        db=args.db,
+        db=db,
         model_a=args.model_a,
         model_b=args.model_b,
         run_name=args.run,
@@ -334,8 +345,9 @@ def cmd_compare(args):
 
 
 def cmd_scan(args):
+    db = resolve_db(args.db)
     stats = scan_and_import(
-        db=args.db,
+        db=db,
         run_name=args.run,
         path=args.path,
         format=args.format,
@@ -355,8 +367,9 @@ def cmd_scan(args):
 
 
 def cmd_diff(args):
+    db = resolve_db(args.db)
     data = diff_models(
-        db=args.db,
+        db=db,
         model_names=args.models,
         run_name=args.run,
         family=args.family,
@@ -365,6 +378,7 @@ def cmd_diff(args):
 
 
 def cmd_exists(args):
+    db = resolve_db(args.db)
     model = args.model
     family = args.family
     metric = args.metric
@@ -378,12 +392,11 @@ def cmd_exists(args):
         print("Error: --family and --metric must be used together.")
         raise SystemExit(1)
 
-    # Detect glob patterns in any field
     has_pattern = any("*" in (s or "") or "?" in (s or "")
                       for s in (model, family, metric, run))
 
     if has_pattern:
-        results = search_entries(args.db, model, family, metric, run)
+        results = search_entries(db, model, family, metric, run)
         if not results:
             print("  ✗ no matches")
             raise SystemExit(1)
@@ -396,16 +409,15 @@ def cmd_exists(args):
         print(f"\n  {len(results)} match(es)")
         raise SystemExit(0)
 
-    # Exact match
     if family and metric:
         if run:
-            found = run_metric_exists(args.db, run, model, family, metric)
+            found = run_metric_exists(db, run, model, family, metric)
             scope = f"model='{model}', run='{run}', family='{family}', metric='{metric}'"
         else:
-            found = metric_exists(args.db, model, family, metric)
+            found = metric_exists(db, model, family, metric)
             scope = f"model='{model}', family='{family}', metric='{metric}'"
     else:
-        found = model_exists(args.db, model)
+        found = model_exists(db, model)
         scope = f"model='{model}'"
 
     if found:
@@ -417,8 +429,310 @@ def cmd_exists(args):
 
 
 def cmd_gui(args):
+    db = resolve_db(args.db)
     from server.main import launch
-    launch(db_path=args.db, host=args.host, port=args.port)
+    launch(db_path=db, host=args.host, port=args.port)
+
+
+# =====================================================
+# NEW COMMANDS
+# =====================================================
+
+def cmd_list(args):
+    db = resolve_db(args.db)
+    what = args.what
+
+    if what == "runs":
+        runs = list_all_runs(db)
+        if not runs:
+            print("\n  No runs found.\n")
+            return
+        print(f"\n  {'Run':<35}  {'Models':>6}  Created")
+        print(f"  {'─'*35}  {'─'*6}  {'─'*10}")
+        for r in runs:
+            created = (r['created_at'] or '')[:10]
+            print(f"  {r['name']:<35}  {r['model_count']:>6}  {created}")
+        print(f"\n  {len(runs)} run(s)\n")
+
+    elif what == "families":
+        families = list_all_families(db)
+        if not families:
+            print("\n  No metric families found.\n")
+            return
+        print(f"\n  {'Family':<25}  {'Metrics':>7}  {'Models':>6}")
+        print(f"  {'─'*25}  {'─'*7}  {'─'*6}")
+        for f in families:
+            print(f"  {f['family']:<25}  {f['metrics']:>7}  {f['models']:>6}")
+        print(f"\n  {len(families)} famil(ies)\n")
+
+    else:  # models
+        run = getattr(args, 'run', None)
+        include_hidden = getattr(args, 'include_hidden', False)
+        models = list_all_models(db, run_name=run, include_hidden=include_hidden)
+        if not models:
+            print("\n  No models found.\n")
+            return
+        name_w = max(len(m['name']) for m in models)
+        name_w = max(name_w, 5)
+        run_w  = max(len(m['run']) for m in models)
+        run_w  = max(run_w, 3)
+        print(f"\n  {'Model':<{name_w}}  {'Run':<{run_w}}  {'Parent':<25}  Notes")
+        print(f"  {'─'*name_w}  {'─'*run_w}  {'─'*25}  {'─'*20}")
+        for m in models:
+            name   = m['name'] + (' [hidden]' if m['hidden'] else '')
+            parent = m['parent'] or '—'
+            notes  = (m['notes'] or '')[:30]
+            print(f"  {name:<{name_w}}  {m['run']:<{run_w}}  {parent:<25}  {notes}")
+        print(f"\n  {len(models)} model(s)\n")
+
+
+def cmd_summary(args):
+    db = resolve_db(args.db)
+    s        = get_db_summary(db)
+    runs     = list_all_runs(db)
+    families = list_all_families(db)
+
+    db_name = Path(db).name
+    print(f"\n  {db_name}")
+    print(f"  {'─'*45}")
+    hidden_note = f"  ({s['hidden']} hidden)" if s['hidden'] else ""
+    print(f"  Runs        : {s['runs']}")
+    print(f"  Models      : {s['models']}{hidden_note}")
+    print(f"  Checkpoints : {s['checkpoints']}")
+    print(f"  Families    : {s['families']}")
+    print(f"  Metrics     : {s['metrics']}")
+    if s['last_updated']:
+        print(f"  Updated     : {s['last_updated'][:10]}")
+
+    if runs:
+        print(f"\n  Runs:")
+        for r in runs:
+            print(f"    {r['name']}  ({r['model_count']} models)")
+
+    if families:
+        print(f"\n  Families:")
+        for f in families:
+            print(f"    {f['family']}  ({f['metrics']} metrics · {f['models']} models)")
+    print()
+
+
+def cmd_info(args):
+    db   = resolve_db(args.db)
+    info = get_model_detail(db, args.model)
+
+    if info is None:
+        print(f"\n  Model '{args.model}' not found.\n")
+        raise SystemExit(1)
+
+    hidden = " [hidden]" if info['hidden'] else ""
+    print(f"\n  Model  : {info['name']}{hidden}")
+    print(f"  Run    : {info['run']}")
+    print(f"  Path   : {info['path']}")
+    if info['parent']:
+        print(f"  Parent : {info['parent']}")
+    if info['children']:
+        print(f"  Children : {', '.join(info['children'])}")
+    if info['notes']:
+        print(f"  Notes  : {info['notes']}")
+
+    if info['checkpoints']:
+        print(f"\n  Checkpoints ({len(info['checkpoints'])}):")
+        for c in info['checkpoints']:
+            print(f"    step {c['step']:>6}  {c['path']}")
+
+    if info['metrics']:
+        print(f"\n  Metrics ({len(info['metrics'])}):")
+        current_family = None
+        for m in info['metrics']:
+            if m['family'] != current_family:
+                current_family = m['family']
+                print(f"    [{current_family}]")
+            print(f"      {m['metric']:<35} {m['value']:.4f}")
+    print()
+
+
+def cmd_top(args):
+    db      = resolve_db(args.db)
+    n       = args.n or 10
+    results = get_top_models(
+        db, args.family, args.metric, n=n,
+        run_name=args.run,
+        include_hidden=args.include_hidden,
+    )
+
+    if not results:
+        print(f"\n  No results for family='{args.family}' metric='{args.metric}'.\n")
+        raise SystemExit(1)
+
+    name_w = max(len(r['model']) for r in results)
+    name_w = max(name_w, 5)
+    print(f"\n  Leaderboard  {args.family} / {args.metric}\n")
+    print(f"  {'#':>3}  {'Model':<{name_w}}  {'Score':>8}  Run")
+    print(f"  {'─'*3}  {'─'*name_w}  {'─'*8}  {'─'*20}")
+    for r in results:
+        print(f"  #{r['rank']:<2}  {r['model']:<{name_w}}  {r['value']:>8.4f}  {r['run']}")
+    print()
+
+
+def cmd_metric_get(args):
+    db    = resolve_db(args.db)
+    value = get_metric_value_any_run(db, args.model, args.family, args.metric)
+
+    if value is None:
+        if not args.raw:
+            print(f"  Not found: {args.model} / {args.family} / {args.metric}")
+        raise SystemExit(1)
+
+    if args.raw:
+        print(value)
+    else:
+        print(f"\n  {args.model}  {args.family}/{args.metric} = {value:.4f}\n")
+
+
+def cmd_notes(args):
+    db = resolve_db(args.db)
+
+    if args.set is not None:
+        try:
+            update_model_notes(db, args.model, args.set)
+            print(f"  Notes updated for '{args.model}'.")
+        except ValueError as e:
+            print(f"  Error: {e}")
+            raise SystemExit(1)
+    else:
+        info = get_model_detail(db, args.model)
+        if info is None:
+            print(f"\n  Model '{args.model}' not found.\n")
+            raise SystemExit(1)
+        notes = info['notes'] or "(no notes)"
+        print(f"\n  {info['name']}: {notes}\n")
+
+
+def cmd_rename(args):
+    db = resolve_db(args.db)
+    try:
+        rename_model(db, args.old, args.new)
+        print(f"  Renamed '{args.old}' → '{args.new}'")
+    except ValueError as e:
+        print(f"  Error: {e}")
+        raise SystemExit(1)
+
+
+def cmd_prune(args):
+    db     = resolve_db(args.db)
+    result = prune_database(db, dry_run=args.dry_run)
+
+    if not result['models'] and not result['runs']:
+        print("\n  Nothing to prune.\n")
+        return
+
+    if result['models']:
+        print(f"\n  Models ({len(result['models'])}):")
+        for name in result['models']:
+            print(f"    - {name}")
+
+    if result['runs']:
+        print(f"\n  Runs ({len(result['runs'])}):")
+        for name in result['runs']:
+            print(f"    - {name}")
+
+    if args.dry_run:
+        print(f"\n  Dry-run: no changes made. Remove --dry-run to apply.\n")
+    else:
+        print(f"\n  Pruned: {len(result['models'])} model(s), {len(result['runs'])} run(s)\n")
+
+
+def cmd_watch(args):
+    import time
+    import signal
+    import datetime
+
+    db       = resolve_db(args.db)
+    interval = args.interval
+
+    print(f"\n  Watching  {args.path}")
+    print(f"  DB   : {db}")
+    print(f"  Run  : {args.run}  |  Format: {args.format}  |  Interval: {interval}s")
+    print(f"  Ctrl+C to stop\n")
+
+    def _stop(sig, frame):
+        print("\n  Stopped.\n")
+        raise SystemExit(0)
+
+    signal.signal(signal.SIGINT, _stop)
+
+    while True:
+        stats = scan_and_import(
+            db=db,
+            run_name=args.run,
+            path=args.path,
+            format=args.format,
+            model_prefix=args.prefix or "",
+            force=args.force,
+        )
+        ts = datetime.datetime.now().strftime("%H:%M:%S")
+        if stats.models_registered > 0 or stats.metrics_logged > 0:
+            print(f"  [{ts}] +{stats.models_registered} models, +{stats.metrics_logged} metrics")
+        else:
+            print(f"  [{ts}] no new data", end="\r", flush=True)
+        time.sleep(interval)
+
+
+def cmd_merge(args):
+    db  = resolve_db(args.db)
+    src = args.src
+
+    if not Path(src).exists():
+        print(f"\n  Error: source database '{src}' not found.\n")
+        raise SystemExit(1)
+
+    print(f"\n  Merging {src} → {db}\n")
+
+    total_models  = 0
+    total_metrics = 0
+
+    with sqlite3.connect(src) as src_conn:
+        runs = src_conn.execute("SELECT run_name FROM run ORDER BY id").fetchall()
+
+        for (run_name,) in runs:
+            models = src_conn.execute("""
+                SELECT mo.model_name, mo.path, pm.model_name AS parent_name, mo.notes
+                FROM model mo
+                JOIN run r ON mo.run_id = r.id
+                LEFT JOIN model pm ON mo.parent_id = pm.id
+                WHERE r.run_name = ?
+                ORDER BY mo.id
+            """, (run_name,)).fetchall()
+
+            handle   = LightMLHandle(db=db, run_name=run_name)
+            n_models = 0
+            n_metrics = 0
+
+            for (model_name, path, parent_name, notes) in models:
+                handle.register_model(model_name, path=path or "", parent_name=parent_name)
+                if notes:
+                    update_model_notes(db, model_name, notes)
+                n_models += 1
+
+                metrics = src_conn.execute("""
+                    SELECT m.family, m.metric_name, m.value
+                    FROM metrics m
+                    JOIN model mo ON m.model_id = mo.id
+                    JOIN run r   ON mo.run_id   = r.id
+                    WHERE mo.model_name = ? AND r.run_name = ?
+                """, (model_name, run_name)).fetchall()
+
+                for (family, metric_name, value) in metrics:
+                    handle.log_model_metric(
+                        model_name, family, metric_name, value, force=args.force
+                    )
+                    n_metrics += 1
+
+            total_models  += n_models
+            total_metrics += n_metrics
+            print(f"  run '{run_name}': {n_models} model(s), {n_metrics} metric(s)")
+
+    print(f"\n  Done. {total_models} model(s), {total_metrics} metric(s) processed.\n")
 
 
 # =====================================================
@@ -426,118 +740,210 @@ def cmd_gui(args):
 # =====================================================
 
 def main():
-
     parser = argparse.ArgumentParser(prog="lightml")
     subparsers = parser.add_subparsers(dest="command")
-    # VERSION
+
+    # ── version ──
     p_version = subparsers.add_parser("version", help="Show LightML version")
     p_version.set_defaults(func=cmd_version)
-    # INIT
-    p_init = subparsers.add_parser("init")
+
+    # ── init ──
+    p_init = subparsers.add_parser("init", help="Create a new registry")
     p_init.add_argument("--path", required=True)
     p_init.add_argument("--name", required=True)
     p_init.add_argument("--overwrite", action="store_true")
     p_init.set_defaults(func=cmd_init)
 
-    # MODEL REGISTER
-    p_model = subparsers.add_parser("model-register")
-    p_model.add_argument("--db", required=True)
+    # ── model-register ──
+    p_model = subparsers.add_parser("model-register", help="Register a model")
+    p_model.add_argument("--db", default=None)
     p_model.add_argument("--run", required=True)
     p_model.add_argument("--name", required=True)
     p_model.add_argument("--path", required=True)
     p_model.add_argument("--parent")
     p_model.set_defaults(func=cmd_model_register)
 
-    # MODEL DELETE
+    # ── model-delete ──
     p_mdel = subparsers.add_parser("model-delete", help="Delete a model and all related data")
-    p_mdel.add_argument("--db", required=True)
-    p_mdel.add_argument("--name", required=True, help="Model name to delete")
+    p_mdel.add_argument("--db", default=None)
+    p_mdel.add_argument("--name", required=True)
     p_mdel.set_defaults(func=cmd_model_delete)
 
-    # CHECKPOINT REGISTER
-    p_ckpt = subparsers.add_parser("checkpoint-register")
-    p_ckpt.add_argument("--db", required=True)
+    # ── checkpoint-register ──
+    p_ckpt = subparsers.add_parser("checkpoint-register", help="Register a checkpoint")
+    p_ckpt.add_argument("--db", default=None)
     p_ckpt.add_argument("--run", required=True)
     p_ckpt.add_argument("--model", required=True)
     p_ckpt.add_argument("--step", type=int, required=True)
     p_ckpt.add_argument("--path", required=True)
     p_ckpt.set_defaults(func=cmd_checkpoint_register)
 
-    # METRIC LOG
-    p_metric = subparsers.add_parser("metric-log")
-    p_metric.add_argument("--db", required=True)
+    # ── metric-log ──
+    p_metric = subparsers.add_parser("metric-log", help="Log a single metric")
+    p_metric.add_argument("--db", default=None)
     p_metric.add_argument("--run", required=True)
     p_metric.add_argument("--family", required=True)
     p_metric.add_argument("--metric", required=True)
     p_metric.add_argument("--value", type=float, required=True)
     p_metric.add_argument("--model")
     p_metric.add_argument("--checkpoint", type=int)
-    p_metric.add_argument("--force", action="store_true", help="Overwrite existing metric instead of skipping")
+    p_metric.add_argument("--force", action="store_true")
     p_metric.set_defaults(func=cmd_metric_log)
 
-    # EXPORT
-    p_export = subparsers.add_parser("export")
-    p_export.add_argument("--db", required=True)
+    # ── export ──
+    p_export = subparsers.add_parser("export", help="Generate Excel report")
+    p_export.add_argument("--db", default=None)
     p_export.add_argument("--output")
     p_export.set_defaults(func=cmd_export)
 
-    # SCAN
+    # ── scan ──
     p_scan = subparsers.add_parser("scan", help="Auto-import eval results from a directory")
-    p_scan.add_argument("--db", required=True)
-    p_scan.add_argument("--run", required=True, help="Run name to register models under")
-    p_scan.add_argument("--path", required=True, help="Root directory to scan")
-    p_scan.add_argument("--format", default="lm_eval", choices=["lm_eval", "json"], help="Result format (default: lm_eval)")
-    p_scan.add_argument("--prefix", help="Prefix to prepend to model names")
-    p_scan.add_argument("--force", action="store_true", help="Overwrite existing metrics")
+    p_scan.add_argument("--db", default=None)
+    p_scan.add_argument("--run", required=True)
+    p_scan.add_argument("--path", required=True)
+    p_scan.add_argument("--format", default="lm_eval", choices=["lm_eval", "json"])
+    p_scan.add_argument("--prefix")
+    p_scan.add_argument("--force", action="store_true")
     p_scan.set_defaults(func=cmd_scan)
 
-    # DIFF
+    # ── diff ──
     p_diff = subparsers.add_parser("diff", help="Side-by-side metric comparison for N models")
-    p_diff.add_argument("--db", required=True)
-    p_diff.add_argument("--models", nargs="+", required=True, help="Model names to compare (2 or more)")
-    p_diff.add_argument("--run", help="Filter to a specific run")
-    p_diff.add_argument("--family", help="Filter to a specific metric family")
-    p_diff.add_argument("--no-color", action="store_true", help="Disable colored output")
+    p_diff.add_argument("--db", default=None)
+    p_diff.add_argument("--models", nargs="+", required=True)
+    p_diff.add_argument("--run")
+    p_diff.add_argument("--family")
+    p_diff.add_argument("--no-color", action="store_true")
     p_diff.set_defaults(func=cmd_diff)
 
-    # COMPARE
+    # ── compare ──
     p_cmp = subparsers.add_parser("compare", help="Compare metrics between two models")
-    p_cmp.add_argument("--db", required=True)
-    p_cmp.add_argument("--model-a", required=True, help="Baseline model name")
-    p_cmp.add_argument("--model-b", required=True, help="Candidate model name")
-    p_cmp.add_argument("--run", help="Filter to a specific run")
-    p_cmp.add_argument("--family", help="Filter to a specific family")
+    p_cmp.add_argument("--db", default=None)
+    p_cmp.add_argument("--model-a", required=True)
+    p_cmp.add_argument("--model-b", required=True)
+    p_cmp.add_argument("--run")
+    p_cmp.add_argument("--family")
     p_cmp.set_defaults(func=cmd_compare)
-    # STATS
+
+    # ── stats ──
     p_stats = subparsers.add_parser("stats", help="Statistical test (McNemar) between two models")
-    p_stats.add_argument("--db", required=True)
-    p_stats.add_argument("--run", help="Run name (interactive if omitted)")
-    p_stats.add_argument("--model-a", help="First model (interactive if omitted)")
-    p_stats.add_argument("--model-b", help="Second model (interactive if omitted)")
-    p_stats.add_argument("--family", help="Metric family (interactive if omitted)")
-    p_stats.add_argument("--metric", help="Metric name (interactive if omitted)")
-    p_stats.add_argument("--include-hidden", action="store_true", help="Include hidden models")
+    p_stats.add_argument("--db", default=None)
+    p_stats.add_argument("--run")
+    p_stats.add_argument("--model-a")
+    p_stats.add_argument("--model-b")
+    p_stats.add_argument("--family")
+    p_stats.add_argument("--metric")
+    p_stats.add_argument("--include-hidden", action="store_true")
     p_stats.set_defaults(func=cmd_stats)
-    # GUI
-    p_gui = subparsers.add_parser("gui", help="Launch interactive dashboard (like tensorboard)")
-    p_gui.add_argument("--db", required=True, help="Path to the LightML .db file")
-    p_gui.add_argument("--port", type=int, default=5050, help="Port (default: 5050)")
-    p_gui.add_argument("--host", default="0.0.0.0", help="Host (default: 0.0.0.0)")
+
+    # ── gui ──
+    p_gui = subparsers.add_parser("gui", help="Launch interactive dashboard")
+    p_gui.add_argument("--db", default=None)
+    p_gui.add_argument("--port", type=int, default=5050)
+    p_gui.add_argument("--host", default="0.0.0.0")
     p_gui.set_defaults(func=cmd_gui)
 
-    # EXISTS
+    # ── exists ──
     p_exists = subparsers.add_parser("exists", help="Check if a model or metric exists")
-    p_exists.add_argument("--db", required=True)
-    p_exists.add_argument("--model", required=True, help="Model name")
-    p_exists.add_argument("--family", help="Metric family (requires --metric)")
-    p_exists.add_argument("--metric", help="Metric name (requires --family)")
-    p_exists.add_argument("--run", help="Restrict to a specific run")
+    p_exists.add_argument("--db", default=None)
+    p_exists.add_argument("--model", required=True)
+    p_exists.add_argument("--family")
+    p_exists.add_argument("--metric")
+    p_exists.add_argument("--run")
     p_exists.set_defaults(func=cmd_exists)
 
-    # MIGRATE
+    # ── migrate ──
     p_migrate = subparsers.add_parser("migrate", help="Update database schema to latest version")
-    p_migrate.add_argument("--db", required=True)
+    p_migrate.add_argument("--db", default=None)
     p_migrate.set_defaults(func=cmd_migrate)
+
+    # ──────────────────────────────────────────────
+    # NEW COMMANDS
+    # ──────────────────────────────────────────────
+
+    # ── list ──
+    p_list = subparsers.add_parser("list", help="List models, runs, or metric families")
+    p_list.add_argument("what", nargs="?", default="models",
+                        choices=["models", "runs", "families"],
+                        help="What to list (default: models)")
+    p_list.add_argument("--db", default=None)
+    p_list.add_argument("--run", help="Filter models by run name")
+    p_list.add_argument("--include-hidden", action="store_true", help="Include hidden models")
+    p_list.set_defaults(func=cmd_list)
+
+    # ── summary ──
+    p_summary = subparsers.add_parser("summary", help="Quick overview of the registry")
+    p_summary.add_argument("--db", default=None)
+    p_summary.set_defaults(func=cmd_summary)
+
+    # ── info ──
+    p_info = subparsers.add_parser("info", help="Detailed info for a single model")
+    p_info.add_argument("--db", default=None)
+    p_info.add_argument("--model", required=True, help="Model name")
+    p_info.set_defaults(func=cmd_info)
+
+    # ── top ──
+    p_top = subparsers.add_parser("top", help="Leaderboard: rank models by a metric")
+    p_top.add_argument("--db", default=None)
+    p_top.add_argument("--family", required=True, help="Metric family")
+    p_top.add_argument("--metric", required=True, help="Metric name")
+    p_top.add_argument("--n", type=int, default=10, help="Number of results (default: 10)")
+    p_top.add_argument("--run", help="Filter to a specific run")
+    p_top.add_argument("--include-hidden", action="store_true")
+    p_top.set_defaults(func=cmd_top)
+
+    # ── metric-get ──
+    p_mget = subparsers.add_parser("metric-get", help="Read a single metric value (scriptable)")
+    p_mget.add_argument("--db", default=None)
+    p_mget.add_argument("--model", required=True)
+    p_mget.add_argument("--family", required=True)
+    p_mget.add_argument("--metric", required=True)
+    p_mget.add_argument("--raw", action="store_true",
+                        help="Print only the numeric value (useful in scripts)")
+    p_mget.set_defaults(func=cmd_metric_get)
+
+    # ── notes ──
+    p_notes = subparsers.add_parser("notes", help="Read or write notes on a model")
+    p_notes.add_argument("--db", default=None)
+    p_notes.add_argument("--model", required=True)
+    p_notes.add_argument("--set", metavar="TEXT", default=None,
+                         help="Set notes text (omit to read)")
+    p_notes.set_defaults(func=cmd_notes)
+
+    # ── rename ──
+    p_rename = subparsers.add_parser("rename", help="Rename a model")
+    p_rename.add_argument("--db", default=None)
+    p_rename.add_argument("--old", required=True, help="Current model name")
+    p_rename.add_argument("--new", required=True, help="New model name")
+    p_rename.set_defaults(func=cmd_rename)
+
+    # ── prune ──
+    p_prune = subparsers.add_parser("prune", help="Remove empty models and runs")
+    p_prune.add_argument("--db", default=None)
+    p_prune.add_argument("--dry-run", action="store_true",
+                         help="Show what would be removed without deleting")
+    p_prune.set_defaults(func=cmd_prune)
+
+    # ── watch ──
+    p_watch = subparsers.add_parser(
+        "watch", help="Continuously scan a directory and auto-import results"
+    )
+    p_watch.add_argument("--db", default=None)
+    p_watch.add_argument("--path", required=True, help="Directory to watch")
+    p_watch.add_argument("--run", required=True, help="Run name")
+    p_watch.add_argument("--format", default="lm_eval", choices=["lm_eval", "json"])
+    p_watch.add_argument("--prefix")
+    p_watch.add_argument("--force", action="store_true")
+    p_watch.add_argument("--interval", type=int, default=30,
+                         help="Poll interval in seconds (default: 30)")
+    p_watch.set_defaults(func=cmd_watch)
+
+    # ── merge ──
+    p_merge = subparsers.add_parser("merge", help="Merge another registry into this one")
+    p_merge.add_argument("--db", default=None, help="Destination registry (default: auto-detect)")
+    p_merge.add_argument("--src", required=True, help="Source registry to import from")
+    p_merge.add_argument("--force", action="store_true",
+                         help="Overwrite existing metrics instead of skipping")
+    p_merge.set_defaults(func=cmd_merge)
 
     args = parser.parse_args()
 

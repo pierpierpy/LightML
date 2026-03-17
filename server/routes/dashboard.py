@@ -170,17 +170,20 @@ async def get_table(request: Request, family: str | None = None, run_id: int | N
         }
         rows.append(row)
 
+    # Build model hidden lookup for checkpoints
+    model_hidden = {m["id"]: bool(m.get("hidden", 0)) for m in model_rows}
+
     for ckpt in ckpt_rows:
-        if run_id:
-            parent_model = next((m for m in model_rows if m["id"] == ckpt["model_id"]), None)
-            if not parent_model:
-                continue
+        parent_model = next((m for m in model_rows if m["id"] == ckpt["model_id"]), None)
+        if run_id and not parent_model:
+            continue
         row = {
             "type": "checkpoint",
             "id": ckpt["id"],
             "name": f"{ckpt['model_name']}  step-{ckpt['step']}",
             "model_name": ckpt["model_name"],
             "step": ckpt["step"],
+            "hidden": model_hidden.get(ckpt["model_id"], False),
             "metrics": ckpt_metrics.get(ckpt["id"], {}),
         }
         rows.append(row)
@@ -265,6 +268,9 @@ async def get_graph(request: Request):
                 "target": m["model_name"],
             })
 
+    # Build model hidden lookup for checkpoints
+    model_hidden = {m["id"]: bool(m.get("hidden", 0)) for m in models}
+
     # Track seen IDs to handle grid-search duplicates (same model+step, different trials)
     seen_ckpt_ids: dict[str, int] = {}
 
@@ -287,6 +293,7 @@ async def get_graph(request: Request):
             "path": c["path"],
             "step": c["step"],
             "parent": c["model_name"],
+            "hidden": model_hidden.get(c["model_id"], False),
             "score": round(avg_score, 2),
             "metrics": metrics,
             "group": c["model_name"],

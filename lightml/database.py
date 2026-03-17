@@ -257,3 +257,73 @@ def migrate_database(db: str):
                 result["model.hidden"] = "ok"
 
         return result
+
+
+# ─────────────────────────────────────────────
+# MUTATIONS
+# ─────────────────────────────────────────────
+
+def rename_model(db: str, old_name: str, new_name: str):
+    with sqlite3.connect(db) as conn:
+        row = conn.execute(
+            "SELECT id FROM model WHERE model_name = ?", (old_name,)
+        ).fetchone()
+        if row is None:
+            raise ValueError(f"Model '{old_name}' not found.")
+        exists = conn.execute(
+            "SELECT 1 FROM model WHERE model_name = ?", (new_name,)
+        ).fetchone()
+        if exists:
+            raise ValueError(f"Model '{new_name}' already exists.")
+        conn.execute(
+            "UPDATE model SET model_name = ? WHERE model_name = ?", (new_name, old_name)
+        )
+        conn.commit()
+
+
+def update_model_notes(db: str, model_name: str, notes: str):
+    with sqlite3.connect(db) as conn:
+        row = conn.execute(
+            "SELECT id FROM model WHERE model_name = ?", (model_name,)
+        ).fetchone()
+        if row is None:
+            raise ValueError(f"Model '{model_name}' not found.")
+        conn.execute(
+            "UPDATE model SET notes = ? WHERE model_name = ?", (notes, model_name)
+        )
+        conn.commit()
+
+
+def prune_database(db: str, dry_run: bool = False) -> dict:
+    result: dict = {"models": [], "runs": []}
+    with sqlite3.connect(db) as conn:
+        conn.execute("PRAGMA foreign_keys = ON;")
+
+        orphan_models = conn.execute("""
+            SELECT mo.model_name FROM model mo
+            WHERE mo.id NOT IN (
+                SELECT DISTINCT model_id FROM metrics WHERE model_id IS NOT NULL
+            )
+            AND mo.id NOT IN (
+                SELECT DISTINCT model_id FROM checkpoint
+            )
+        """).fetchall()
+        result["models"] = [r[0] for r in orphan_models]
+
+        if not dry_run:
+            for name in result["models"]:
+                conn.execute("DELETE FROM model WHERE model_name = ?", (name,))
+            conn.commit()
+
+        orphan_runs = conn.execute("""
+            SELECT r.run_name FROM run r
+            WHERE r.id NOT IN (SELECT DISTINCT run_id FROM model)
+        """).fetchall()
+        result["runs"] = [r[0] for r in orphan_runs]
+
+        if not dry_run:
+            for name in result["runs"]:
+                conn.execute("DELETE FROM run WHERE run_name = ?", (name,))
+            conn.commit()
+
+    return result
