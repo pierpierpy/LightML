@@ -884,7 +884,7 @@ def main():
     # ── model-register ──
     p_model = subparsers.add_parser("model-register", help="Register a model")
     p_model.add_argument("--db", default=None)
-    p_model.add_argument("--run", required=True)
+    p_model.add_argument("--run", default=None)
     p_model.add_argument("--name", required=True)
     p_model.add_argument("--path", required=True)
     p_model.add_argument("--parent")
@@ -899,7 +899,7 @@ def main():
     # ── checkpoint-register ──
     p_ckpt = subparsers.add_parser("checkpoint-register", help="Register a checkpoint")
     p_ckpt.add_argument("--db", default=None)
-    p_ckpt.add_argument("--run", required=True)
+    p_ckpt.add_argument("--run", default=None)
     p_ckpt.add_argument("--model", required=True)
     p_ckpt.add_argument("--step", type=int, required=True)
     p_ckpt.add_argument("--path", required=True)
@@ -908,7 +908,7 @@ def main():
     # ── metric-log ──
     p_metric = subparsers.add_parser("metric-log", help="Log a single metric")
     p_metric.add_argument("--db", default=None)
-    p_metric.add_argument("--run", required=True)
+    p_metric.add_argument("--run", default=None)
     p_metric.add_argument("--family", required=True)
     p_metric.add_argument("--metric", required=True)
     p_metric.add_argument("--value", type=float, required=True)
@@ -926,7 +926,7 @@ def main():
     # ── scan ──
     p_scan = subparsers.add_parser("scan", help="Auto-import eval results from a directory")
     p_scan.add_argument("--db", default=None)
-    p_scan.add_argument("--run", required=True)
+    p_scan.add_argument("--run", default=None)
     p_scan.add_argument("--path", required=True)
     p_scan.add_argument("--format", default="lm_eval", choices=["lm_eval", "json"])
     p_scan.add_argument("--prefix")
@@ -1057,7 +1057,7 @@ def main():
     )
     p_watch.add_argument("--db", default=None)
     p_watch.add_argument("--path", required=True, help="Directory to watch")
-    p_watch.add_argument("--run", required=True, help="Run name")
+    p_watch.add_argument("--run", default=None, help="Run name")
     p_watch.add_argument("--format", default="lm_eval", choices=["lm_eval", "json"])
     p_watch.add_argument("--prefix")
     p_watch.add_argument("--force", action="store_true")

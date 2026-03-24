@@ -13,9 +13,9 @@ def _is_hf_path(path: str) -> bool:
 
 
 def register_model(db: str,
-                   run_name: str,
-                   model_name: str,
-                   path: str,
+                   run_name: str | None = None,
+                   model_name: str = "",
+                   path: str = "",
                    parent_name: str | None = None,
                    parent_id: int | None = None) -> int:
 
@@ -39,13 +39,23 @@ def register_model(db: str,
             # ------------------------
             # GET RUN ID
             # ------------------------
+            if run_name is None:
+                run_name = "run_0"
+
             run_row = conn.execute(
                 "SELECT id FROM run WHERE run_name = ?;",
                 (run_name,),
             ).fetchone()
 
             if run_row is None:
-                raise ValueError(f"Run '{run_name}' does not exist")
+                conn.execute(
+                    "INSERT OR IGNORE INTO run (run_name) VALUES (?);",
+                    (run_name,),
+                )
+                run_row = conn.execute(
+                    "SELECT id FROM run WHERE run_name = ?;",
+                    (run_name,),
+                ).fetchone()
 
             run_id = run_row[0]
 

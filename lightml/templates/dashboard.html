@@ -106,38 +106,82 @@ select:focus, .btn:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0
 .view-toggle .vt-btn:hover { background: #374151; color: #e0e0e0; }
 .view-toggle .vt-btn.active { background: #3b82f6; color: #fff; }
 
-/* ============================== TABS ============================== */
+/* ============================== FAMILY TABS ============================== */
 .tabs-bar {
     display: flex;
     align-items: center;
-    gap: 2px;
-    padding: 8px 24px 0;
-    background: rgba(15, 15, 26, 0.6);
-    border-bottom: 1px solid #2d2d44;
+    gap: 6px;
+    padding: 10px 24px;
+    background: rgba(10,10,20,0.5);
+    border-bottom: 1px solid rgba(255,255,255,0.05);
     overflow-x: auto;
+    scrollbar-width: none;
 }
+.tabs-bar::-webkit-scrollbar { display: none; }
 
 .tab {
-    padding: 10px 20px;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 6px 14px;
     font-size: 12px;
     font-weight: 500;
-    color: #9ca3af;
-    background: transparent;
-    border: none;
-    border-bottom: 2px solid transparent;
+    color: #6b7280;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 20px;
     cursor: pointer;
     white-space: nowrap;
-    transition: all 0.2s;
+    transition: all 0.18s;
+    position: relative;
 }
-.tab:hover { color: #e0e0e0; background: rgba(255,255,255,0.03); }
+.tab:hover {
+    color: #e0e0e0;
+    background: rgba(255,255,255,0.07);
+    border-color: rgba(255,255,255,0.12);
+}
 .tab.active {
-    color: #60a5fa;
-    border-bottom-color: #3b82f6;
-    background: rgba(59, 130, 246, 0.08);
+    color: #fff;
+    background: rgba(59,130,246,0.18);
+    border-color: rgba(59,130,246,0.45);
+    box-shadow: 0 0 12px rgba(59,130,246,0.15);
 }
-
-.tab-all { color: #a78bfa; }
-.tab-all.active { color: #a78bfa; border-bottom-color: #7c3aed; }
+.tab .tab-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    opacity: 0.7;
+}
+.tab.active .tab-dot { opacity: 1; }
+.tab .tab-count {
+    font-size: 9px;
+    font-weight: 700;
+    padding: 1px 5px;
+    border-radius: 8px;
+    background: rgba(255,255,255,0.08);
+    color: #6b7280;
+    letter-spacing: 0.3px;
+}
+.tab.active .tab-count {
+    background: rgba(59,130,246,0.25);
+    color: #93c5fd;
+}
+.tab-all {
+    color: #a78bfa;
+    border-color: rgba(167,139,250,0.2);
+    background: rgba(167,139,250,0.06);
+}
+.tab-all:hover {
+    background: rgba(167,139,250,0.12);
+    border-color: rgba(167,139,250,0.3);
+    color: #c4b5fd;
+}
+.tab-all.active {
+    color: #c4b5fd;
+    background: rgba(124,58,237,0.2);
+    border-color: rgba(124,58,237,0.5);
+    box-shadow: 0 0 12px rgba(124,58,237,0.15);
+}
 
 /* ============================== CONTENT ============================== */
 .content {
@@ -146,28 +190,33 @@ select:focus, .btn:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0
     overflow-x: auto;
 }
 
-/* ============================== STATS BAR ============================== */
-.stats-bar {
+/* ============================== CONTEXT BAR ============================== */
+.context-bar {
     display: flex;
-    gap: 16px;
-    margin-bottom: 20px;
-    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    padding: 0 24px;
+    height: 32px;
+    background: rgba(10,10,20,0.7);
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    font-size: 11px;
+    color: #4b5563;
+    flex-shrink: 0;
 }
-
-.stat-card {
-    background: rgba(30, 30, 50, 0.8);
-    border: 1px solid #2d2d44;
-    border-radius: 10px;
-    padding: 14px 20px;
-    min-width: 140px;
-    flex: 1;
-    max-width: 220px;
+.context-bar .ctx-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    color: #6b7280;
 }
-.stat-card .label { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: #6b7280; margin-bottom: 4px; }
-.stat-card .value { font-size: 22px; font-weight: 700; color: #60a5fa; }
-.stat-card .value.green { color: #34d399; }
-.stat-card .value.purple { color: #a78bfa; }
-.stat-card .value.amber { color: #fbbf24; }
+.context-bar .ctx-item strong { color: #9ca3af; font-weight: 600; }
+.context-bar .ctx-sep { color: #2d2d44; margin: 0 2px; }
+.context-bar .ctx-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: #34d399;
+    box-shadow: 0 0 6px rgba(52,211,153,0.5);
+    flex-shrink: 0;
+}
 
 /* ============================== TOGGLE BAR ============================== */
 .toggle-bar {
@@ -177,6 +226,51 @@ select:focus, .btn:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0
     margin-bottom: 16px;
     padding: 8px 0;
 }
+
+/* ============================== SETTINGS PANEL ============================== */
+.settings-section {
+    padding: 0 16px 16px;
+}
+.settings-section + .settings-section {
+    border-top: 1px solid rgba(255,255,255,0.05);
+    padding-top: 16px;
+}
+.settings-section-title {
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: #4b5563;
+    font-weight: 700;
+    margin-bottom: 12px;
+    margin-top: 4px;
+}
+.settings-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+    gap: 12px;
+}
+.settings-row:last-child { margin-bottom: 0; }
+.settings-row-label {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    flex: 1;
+}
+.settings-row-label span { font-size: 13px; color: #e0e0e0; }
+.settings-row-label small { font-size: 10px; color: #4b5563; line-height: 1.4; }
+.settings-select {
+    background: rgba(0,0,0,0.3);
+    border: 1px solid rgba(255,255,255,0.1);
+    color: #e0e0e0;
+    padding: 5px 10px;
+    border-radius: 8px;
+    font-size: 12px;
+    cursor: pointer;
+    min-width: 110px;
+}
+.settings-select:focus { outline: none; border-color: #3b82f6; }
 
 .toggle-label {
     display: flex;
@@ -239,6 +333,25 @@ select:focus, .btn:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0
     border: 1px solid #2d2d44;
     background: rgba(20, 20, 35, 0.9);
     max-width: 100%;
+    position: relative;
+}
+.table-wrapper::-webkit-scrollbar { height: 6px; }
+.table-wrapper::-webkit-scrollbar-track { background: rgba(255,255,255,0.04); border-radius: 3px; }
+.table-wrapper::-webkit-scrollbar-thumb { background: #374151; border-radius: 3px; }
+.table-wrapper::-webkit-scrollbar-thumb:hover { background: #4b5563; }
+.table-wrapper.can-scroll-right::after {
+    content: '';
+    position: sticky;
+    right: 0;
+    top: 0;
+    display: block;
+    width: 48px;
+    height: 100%;
+    margin-top: -100%;
+    pointer-events: none;
+    background: linear-gradient(to right, transparent, rgba(14, 14, 26, 0.85));
+    float: right;
+    border-radius: 0 12px 12px 0;
 }
 
 table {
@@ -258,9 +371,12 @@ thead th {
     top: 0;
     z-index: 10;
     white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
     cursor: pointer;
     user-select: none;
     transition: background 0.2s;
+    position: relative;
 }
 thead th:hover { background: #374151; color: #e0e0e0; }
 thead th.sorted-asc::after { content: ' ▲'; font-size: 9px; color: #60a5fa; }
@@ -274,14 +390,54 @@ thead th:nth-child(2) {
     min-width: 200px;
 }
 
+/* Column resize handle */
+.col-resize-handle {
+    position: absolute;
+    right: 0;
+    top: 0;
+    width: 6px;
+    height: 100%;
+    cursor: col-resize;
+    z-index: 20;
+    user-select: none;
+}
+.col-resize-handle:hover, .col-resize-handle.dragging {
+    background: rgba(96, 165, 250, 0.5);
+}
+/* Collapsed column */
+th.col-collapsed, td.col-collapsed {
+    width: 18px !important;
+    min-width: 18px !important;
+    max-width: 18px !important;
+    overflow: hidden;
+    padding-left: 2px !important;
+    padding-right: 2px !important;
+    color: transparent;
+    cursor: pointer;
+}
+th.col-collapsed .col-resize-handle { display: none; }
+th.col-collapsed::before {
+    content: '◀';
+    color: #6b7280;
+    font-size: 8px;
+    display: block;
+    text-align: center;
+}
+
 thead th.family-header {
-    background: #1e293b;
-    color: #60a5fa;
-    font-size: 10px;
+    font-size: 9px;
     text-transform: uppercase;
-    letter-spacing: 1px;
-    border-bottom: 1px solid #3b82f6;
+    letter-spacing: 1.2px;
     cursor: default;
+    border-bottom: 2px solid;
+    padding: 6px 14px;
+}
+thead th.family-header .fh-dot {
+    display: inline-block;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    margin-right: 5px;
+    vertical-align: middle;
 }
 
 tbody td {
@@ -289,6 +445,9 @@ tbody td {
     text-align: center;
     border-bottom: 1px solid rgba(55, 65, 81, 0.4);
     transition: background 0.15s;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 tbody tr:hover td { background: rgba(59, 130, 246, 0.06); }
@@ -1393,6 +1552,52 @@ tr.row-selected td:first-child { border-left: 3px solid #3b82f6; }
 }
 .cb-footer .btn { padding: 8px 20px; font-size: 13px; }
 
+/* ============================== SETTINGS PANEL OVERLAY ============================== */
+.settings-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 500;
+    background: rgba(0,0,0,0.5);
+    backdrop-filter: blur(4px);
+}
+.settings-overlay.open { display: flex; justify-content: flex-end; }
+.settings-panel {
+    width: 360px;
+    height: 100%;
+    background: #111827;
+    border-left: 1px solid rgba(255,255,255,0.07);
+    display: flex;
+    flex-direction: column;
+    box-shadow: -12px 0 50px rgba(0,0,0,0.5);
+    animation: slideIn 0.25s ease-out;
+    overflow-y: auto;
+}
+.settings-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 20px 14px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    position: sticky;
+    top: 0;
+    background: #111827;
+    z-index: 2;
+}
+.settings-panel-header h3 {
+    color: #f1f5f9;
+    font-size: 15px;
+    font-weight: 600;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.settings-panel-body {
+    padding: 16px 0 40px;
+    flex: 1;
+}
+
 /* ============================== BUILDER PANEL ============================== */
 .builder-overlay {
     display: none;
@@ -1543,7 +1748,20 @@ tr.row-selected td:first-child { border-left: 3px solid #3b82f6; }
         </select>
         <button class="btn btn-icon" onclick="refresh()" title="Refresh data">↻ Refresh</button>
         <button class="btn btn-icon" onclick="exportExcel()" title="Export as Excel">⬇ Excel</button>
+        <button class="btn btn-icon" onclick="openSettings()" title="Settings">⚙️</button>
     </div>
+</div>
+
+<!-- ==================== CONTEXT BAR ==================== -->
+<div class="context-bar" id="contextBar">
+    <span class="ctx-dot"></span>
+    <span class="ctx-item"><strong id="ctxModels">—</strong> models</span>
+    <span class="ctx-sep">·</span>
+    <span class="ctx-item"><strong id="ctxMetrics">—</strong> metrics</span>
+    <span class="ctx-sep">·</span>
+    <span class="ctx-item"><strong id="ctxFamilies">—</strong> families</span>
+    <span class="ctx-sep">·</span>
+    <span class="ctx-item"><strong id="ctxRuns">—</strong> runs</span>
 </div>
 
 <!-- ==================== FAMILY TABS ==================== -->
@@ -1551,9 +1769,6 @@ tr.row-selected td:first-child { border-left: 3px solid #3b82f6; }
 
 <!-- ==================== CONTENT ==================== -->
 <div class="content">
-    <!-- Stats -->
-    <div class="stats-bar" id="statsBar"></div>
-
     <!-- Selection Bar -->
     <div class="selection-bar" id="selectionBar">
         <span><span class="sel-count" id="selCount">0</span> models selected</span>
@@ -1572,6 +1787,7 @@ tr.row-selected td:first-child { border-left: 3px solid #3b82f6; }
                 <span class="chip-label">Metrics</span>
                 <div class="chip-bar" id="metricChipBar"></div>
                 <button class="add-chip-btn" onclick="openBuilder('metric')" title="Add/remove metrics">+</button>
+                <button class="save-filter-btn" onclick="saveSummaryMetrics()" title="Save current metrics as summary set">💾</button>
             </div>
             <div class="chip-section">
                 <span class="chip-label">Models</span>
@@ -1600,6 +1816,10 @@ tr.row-selected td:first-child { border-left: 3px solid #3b82f6; }
                 <label class="toggle-label">
                     <input type="checkbox" id="showHiddenTable" onchange="renderTable()">
                     Hidden
+                </label>
+                <label class="toggle-label">
+                    <input type="checkbox" id="summaryMode" onchange="applySummaryFilter()">
+                    Summary
                 </label>
             </div>
         </div>
@@ -1729,7 +1949,154 @@ tr.row-selected td:first-child { border-left: 3px solid #3b82f6; }
     </div>
 </div>
 
-<!-- ==================== BUILDER PANEL ==================== -->
+<!-- ==================== SETTINGS PANEL ==================== -->
+<div class="settings-overlay" id="settingsOverlay" onclick="if(event.target===this) closeSettings()">
+    <div class="settings-panel">
+        <div class="settings-panel-header">
+            <h3>⚙️ Settings</h3>
+            <button class="builder-close" onclick="closeSettings()">&#x2715;</button>
+        </div>
+        <div class="settings-panel-body">
+
+            <div class="settings-section">
+                <div class="settings-section-title">Display</div>
+
+                <div class="settings-row">
+                    <div class="settings-row-label">
+                        <span>Show as percentage</span>
+                        <small>Values 0–1 shown as % (e.g. 0.75 → 75.00%)</small>
+                    </div>
+                    <label class="toggle-label">
+                        <input type="checkbox" id="showAsPercent" onchange="onSettingChange()">
+                    </label>
+                </div>
+
+                <div class="settings-row">
+                    <div class="settings-row-label">
+                        <span>Decimal places</span>
+                        <small>Precision for numeric values</small>
+                    </div>
+                    <select class="settings-select" id="decimalPlaces" onchange="onSettingChange()">
+                        <option value="1">1 decimal</option>
+                        <option value="2" selected>2 decimals</option>
+                        <option value="3">3 decimals</option>
+                        <option value="4">4 decimals</option>
+                    </select>
+                </div>
+
+                <div class="settings-row">
+                    <div class="settings-row-label">
+                        <span>Compact model names</span>
+                        <small>Truncate long model names in the table</small>
+                    </div>
+                    <label class="toggle-label">
+                        <input type="checkbox" id="compactNames" onchange="onSettingChange()">
+                    </label>
+                </div>
+
+                <div class="settings-row">
+                    <div class="settings-row-label">
+                        <span>Freeze model column</span>
+                        <small>Keep model name visible while scrolling</small>
+                    </div>
+                    <label class="toggle-label">
+                        <input type="checkbox" id="freezeModelCol" checked onchange="onSettingChange()">
+                    </label>
+                </div>
+            </div>
+
+            <div class="settings-section">
+                <div class="settings-section-title">Table</div>
+
+                <div class="settings-row">
+                    <div class="settings-row-label">
+                        <span>Row density</span>
+                        <small>Padding inside table rows</small>
+                    </div>
+                    <select class="settings-select" id="rowDensity" onchange="onSettingChange()">
+                        <option value="compact">Compact</option>
+                        <option value="normal" selected>Normal</option>
+                        <option value="relaxed">Relaxed</option>
+                    </select>
+                </div>
+
+                <div class="settings-row">
+                    <div class="settings-row-label">
+                        <span>Color scale</span>
+                        <small>How cell colors are computed</small>
+                    </div>
+                    <select class="settings-select" id="colorScale" onchange="onSettingChange()">
+                        <option value="relative" selected>Relative (per column)</option>
+                        <option value="absolute">Absolute (0–1 / 0–100)</option>
+                        <option value="off">Off</option>
+                    </select>
+                </div>
+
+                <div class="settings-row">
+                    <div class="settings-row-label">
+                        <span>Show run tag</span>
+                        <small>Display run name next to model</small>
+                    </div>
+                    <label class="toggle-label">
+                        <input type="checkbox" id="showRunTag" checked onchange="onSettingChange()">
+                    </label>
+                </div>
+
+                <div class="settings-row">
+                    <div class="settings-row-label">
+                        <span>Striped rows</span>
+                        <small>Alternate row background shading</small>
+                    </div>
+                    <label class="toggle-label">
+                        <input type="checkbox" id="stripedRows" checked onchange="onSettingChange()">
+                    </label>
+                </div>
+            </div>
+
+            <div class="settings-section">
+                <div class="settings-section-title">Families</div>
+
+                <div class="settings-row">
+                    <div class="settings-row-label">
+                        <span>Family color coding</span>
+                        <small>Color-code family headers in the table</small>
+                    </div>
+                    <label class="toggle-label">
+                        <input type="checkbox" id="familyColors" checked onchange="onSettingChange()">
+                    </label>
+                </div>
+
+                <div class="settings-row">
+                    <div class="settings-row-label">
+                        <span>Show metric count in tabs</span>
+                        <small>Display number of metrics per family tab</small>
+                    </div>
+                    <label class="toggle-label">
+                        <input type="checkbox" id="showTabCount" checked onchange="onSettingChange()">
+                    </label>
+                </div>
+            </div>
+
+            <div class="settings-section">
+                <div class="settings-section-title">Auto-refresh</div>
+                <div class="settings-row">
+                    <div class="settings-row-label">
+                        <span>Auto-refresh interval</span>
+                        <small>Automatically reload data from server</small>
+                    </div>
+                    <select class="settings-select" id="autoRefreshInterval" onchange="onAutoRefreshChange()">
+                        <option value="0" selected>Off</option>
+                        <option value="15">15s</option>
+                        <option value="30">30s</option>
+                        <option value="60">1 min</option>
+                        <option value="300">5 min</option>
+                    </select>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
 <div class="builder-overlay" id="builderOverlay" onclick="if(event.target===this) closeBuilder()">
     <div class="builder-panel">
         <div class="builder-header">
@@ -1758,6 +2125,74 @@ let sortDir = 'desc';
 let currentView = 'table';
 let graphSimulation = null;
 
+let colWidths = JSON.parse(localStorage.getItem('lightml_col_widths') || '{}');
+let collapsedCols = new Set(JSON.parse(localStorage.getItem('lightml_col_collapsed') || '[]'));
+function saveColState() {
+    localStorage.setItem('lightml_col_widths', JSON.stringify(colWidths));
+    localStorage.setItem('lightml_col_collapsed', JSON.stringify([...collapsedCols]));
+}
+
+function handleColHeaderClick(e, col) {
+    // If click was on the resize handle, ignore
+    if (e.target.classList.contains('col-resize-handle')) return;
+    if (collapsedCols.has(col)) {
+        // expand
+        collapsedCols.delete(col);
+        saveColState();
+        renderTable();
+    } else {
+        toggleSort(col);
+    }
+}
+
+function initColResize(container) {
+    container.querySelectorAll('.col-resize-handle').forEach(handle => {
+        handle.addEventListener('mousedown', e => {
+            e.stopPropagation();
+            e.preventDefault();
+            const col = handle.dataset.col;
+            const th = handle.closest('th');
+            const startX = e.clientX;
+            const startW = th.offsetWidth;
+            handle.classList.add('dragging');
+            document.body.style.cursor = 'col-resize';
+            document.body.style.userSelect = 'none';
+
+            function onMove(e) {
+                const newW = Math.max(30, startW + e.clientX - startX);
+                colWidths[col] = newW;
+                // Apply to all cells in this column immediately
+                const idx = [...th.parentElement.children].indexOf(th);
+                const table = th.closest('table');
+                table.querySelectorAll(`tr > *:nth-child(${idx + 1})`).forEach(cell => {
+                    cell.style.width = newW + 'px';
+                    cell.style.maxWidth = newW + 'px';
+                });
+            }
+            function onUp() {
+                handle.classList.remove('dragging');
+                document.body.style.cursor = '';
+                document.body.style.userSelect = '';
+                saveColState();
+                document.removeEventListener('mousemove', onMove);
+                document.removeEventListener('mouseup', onUp);
+            }
+            document.addEventListener('mousemove', onMove);
+            document.addEventListener('mouseup', onUp);
+        });
+
+        // Double-click to collapse
+        handle.addEventListener('dblclick', e => {
+            e.stopPropagation();
+            const col = handle.dataset.col;
+            if (col === '__name__') return; // don't collapse model col
+            collapsedCols.add(col);
+            saveColState();
+            renderTable();
+        });
+    });
+}
+
 // ── Graph detail panel state ─────────────────
 let detailNode = null;       // currently selected node data
 let linkMode = false;        // "click to set parent" mode
@@ -1773,6 +2208,81 @@ const visibleMetrics  = new Set();
 let allMetricKeys     = [];          // all family/metric keys from DATA
 let columnOrder       = [];          // ordered list of visible metric keys
 let builderType       = null;
+
+/* ======================================================================
+   SETTINGS
+   ====================================================================== */
+const SETTINGS_LS_KEY = 'lightml_settings';
+function loadSettings() {
+    try { return JSON.parse(localStorage.getItem(SETTINGS_LS_KEY) || '{}'); } catch { return {}; }
+}
+function saveSettings(s) { localStorage.setItem(SETTINGS_LS_KEY, JSON.stringify(s)); }
+function getSetting(key, def) { const s = loadSettings(); return key in s ? s[key] : def; }
+function getShowAsPercent()  { return getSetting('showAsPercent', true); }
+function getDecimalPlaces()  { return parseInt(getSetting('decimalPlaces', 2)); }
+function getCompactNames()   { return getSetting('compactNames', false); }
+function getFreezeModelCol() { return getSetting('freezeModelCol', true); }
+function getRowDensity()     { return getSetting('rowDensity', 'normal'); }
+function getColorScale()     { return getSetting('colorScale', 'relative'); }
+function getShowRunTag()     { return getSetting('showRunTag', true); }
+function getStripedRows()    { return getSetting('stripedRows', true); }
+function getFamilyColors()   { return getSetting('familyColors', true); }
+function getShowTabCount()   { return getSetting('showTabCount', true); }
+
+function openSettings() {
+    document.getElementById('showAsPercent').checked  = getShowAsPercent();
+    document.getElementById('decimalPlaces').value    = getDecimalPlaces();
+    document.getElementById('compactNames').checked   = getCompactNames();
+    document.getElementById('freezeModelCol').checked = getFreezeModelCol();
+    document.getElementById('rowDensity').value       = getRowDensity();
+    document.getElementById('colorScale').value       = getColorScale();
+    document.getElementById('showRunTag').checked     = getShowRunTag();
+    document.getElementById('stripedRows').checked    = getStripedRows();
+    document.getElementById('familyColors').checked   = getFamilyColors();
+    document.getElementById('showTabCount').checked   = getShowTabCount();
+    document.getElementById('autoRefreshInterval').value = getSetting('autoRefreshInterval', 0);
+    document.getElementById('settingsOverlay').classList.add('open');
+}
+function closeSettings() {
+    document.getElementById('settingsOverlay').classList.remove('open');
+}
+function onSettingChange() {
+    saveSettings({
+        showAsPercent:  document.getElementById('showAsPercent').checked,
+        decimalPlaces:  parseInt(document.getElementById('decimalPlaces').value),
+        compactNames:   document.getElementById('compactNames').checked,
+        freezeModelCol: document.getElementById('freezeModelCol').checked,
+        rowDensity:     document.getElementById('rowDensity').value,
+        colorScale:     document.getElementById('colorScale').value,
+        showRunTag:     document.getElementById('showRunTag').checked,
+        stripedRows:    document.getElementById('stripedRows').checked,
+        familyColors:   document.getElementById('familyColors').checked,
+        showTabCount:   document.getElementById('showTabCount').checked,
+        autoRefreshInterval: getSetting('autoRefreshInterval', 0),
+    });
+    populateTabs();
+    renderTable();
+}
+function onAutoRefreshChange() {
+    const sec = parseInt(document.getElementById('autoRefreshInterval').value);
+    const s = loadSettings(); s.autoRefreshInterval = sec; saveSettings(s);
+    if (_autoRefreshId) { clearInterval(_autoRefreshId); _autoRefreshId = null; }
+    if (sec > 0) _autoRefreshId = setInterval(refresh, sec * 1000);
+}
+
+/* ── Family color palette ── */
+const FAM_COLORS = ['#60a5fa','#f472b6','#34d399','#fbbf24','#a78bfa','#fb923c','#22d3ee','#f87171','#a3e635','#e879f9','#2dd4bf','#818cf8'];
+const _famColorMap = {};
+function getFamColor(fam) {
+    if (!_famColorMap[fam]) {
+        const idx = Object.keys(_famColorMap).length;
+        _famColorMap[fam] = FAM_COLORS[idx % FAM_COLORS.length];
+    }
+    return _famColorMap[fam];
+}
+function hexToRgb(hex) {
+    return `${parseInt(hex.slice(1,3),16)},${parseInt(hex.slice(3,5),16)},${parseInt(hex.slice(5,7),16)}`;
+}
 
 /* ======================================================================
    VIEW SWITCH
@@ -1804,7 +2314,7 @@ async function refresh() {
         populateTabs();
         initFilters();
         renderSavedFilters();
-        renderStats();
+        renderContextBar();
         await loadTable();
 
         if (currentView === 'graph') { GRAPH = null; loadGraph(); }
@@ -1837,31 +2347,46 @@ function populateRuns() {
 function populateTabs() {
     const bar = document.getElementById('tabsBar');
     bar.innerHTML = '';
+    const showCount = getShowTabCount();
 
     const allTab = document.createElement('button');
     allTab.className = 'tab tab-all' + (activeFamily === null ? ' active' : '');
-    allTab.textContent = '✦ All Families';
+    const totalM = DATA ? DATA.metrics.length : 0;
+    allTab.innerHTML = `<span>All Families</span>${showCount ? `<span class="tab-count">${totalM}</span>` : ''}`;
     allTab.onclick = () => { activeFamily = null; sortCol = null; populateTabs(); loadTable(); };
     bar.appendChild(allTab);
 
+    if (!DATA) return;
+    const famMetricCount = {};
+    for (const m of DATA.metrics) famMetricCount[m.family] = (famMetricCount[m.family] || 0) + 1;
+
     for (const f of DATA.families) {
+        const color = getFamColor(f);
+        const rgb = hexToRgb(color);
+        const count = famMetricCount[f] || 0;
         const tab = document.createElement('button');
-        tab.className = 'tab' + (activeFamily === f ? ' active' : '');
-        tab.textContent = f;
+        const isActive = activeFamily === f;
+        tab.className = 'tab' + (isActive ? ' active' : '');
+        if (isActive) {
+            tab.style.background = `rgba(${rgb},0.15)`;
+            tab.style.borderColor = `rgba(${rgb},0.45)`;
+            tab.style.color = color;
+            tab.style.boxShadow = `0 0 12px rgba(${rgb},0.12)`;
+        }
+        tab.innerHTML = `<span class="tab-dot" style="background:${color}"></span><span>${esc(f)}</span>${showCount ? `<span class="tab-count">${count}</span>` : ''}`;
         tab.onclick = () => { activeFamily = f; sortCol = null; populateTabs(); loadTable(); };
         bar.appendChild(tab);
     }
 }
 
 /* ======================================================================
-   STATS
+   CONTEXT BAR
    ====================================================================== */
-function renderStats() {
-    const bar = document.getElementById('statsBar');
+function renderContextBar() {
+    if (!DATA) return;
     const hiddenIds = new Set(DATA.models.filter(m => m.hidden).map(m => m.id));
-    const visibleModels = DATA.models.length - hiddenIds.size;
-    const visibleCkpts = DATA.checkpoints.filter(c => !hiddenIds.has(c.model_id)).length;
-    const visibleMetrics = DATA.metrics.filter(me => {
+    const visM = DATA.models.length - hiddenIds.size;
+    const visMe = DATA.metrics.filter(me => {
         if (me.model_id && hiddenIds.has(me.model_id)) return false;
         if (me.checkpoint_id) {
             const ck = DATA.checkpoints.find(c => c.id === me.checkpoint_id);
@@ -1869,19 +2394,10 @@ function renderStats() {
         }
         return true;
     }).length;
-    const stats = [
-        { label: 'Runs',        value: DATA.runs.length,   cls: '' },
-        { label: 'Models',      value: visibleModels,      cls: 'green' },
-        { label: 'Checkpoints', value: visibleCkpts,       cls: 'amber' },
-        { label: 'Metrics',     value: visibleMetrics,     cls: 'purple' },
-        { label: 'Families',    value: DATA.families.length, cls: '' },
-    ];
-    bar.innerHTML = stats.map(s => `
-        <div class="stat-card">
-            <div class="label">${s.label}</div>
-            <div class="value ${s.cls}">${s.value}</div>
-        </div>
-    `).join('');
+    document.getElementById('ctxModels').textContent   = visM;
+    document.getElementById('ctxMetrics').textContent  = visMe;
+    document.getElementById('ctxFamilies').textContent = DATA.families.length;
+    document.getElementById('ctxRuns').textContent     = DATA.runs.length;
 }
 
 /* ======================================================================
@@ -1996,42 +2512,55 @@ function renderTable() {
         }
     }
 
-    let html = '<div class="table-wrapper"><table>';
+    const useFamColors = getFamilyColors();
+    const showRunTag   = getShowRunTag();
+    const freeze       = getFreezeModelCol();
+    const density      = getRowDensity();
+    const rowPad       = density === 'compact' ? '4px 10px' : density === 'relaxed' ? '14px 16px' : '8px 14px';
+    const striped      = getStripedRows();
+
+    let html = `<div class="table-wrapper"><table style="--row-pad:${rowPad};">`;
 
     if (!activeFamily && families.length > 1) {
         html += '<thead><tr><th></th><th></th><th></th>';
         for (const f of families) {
-            html += `<th colspan="${f.metrics.length}" class="family-header">${esc(f.name)}</th>`;
+            const color = useFamColors ? getFamColor(f.name) : '#60a5fa';
+            const rgb = hexToRgb(color);
+            html += `<th colspan="${f.metrics.length}" class="family-header" style="color:${color};background:rgba(${rgb},0.07);border-bottom-color:rgba(${rgb},0.4);"><span class="fh-dot" style="background:${color}"></span>${esc(f.name)}</th>`;
         }
         html += '</tr>';
     } else {
         html += '<thead>';
     }
 
-    html += '<tr><th class="sel-th"><input type="checkbox" class="sel-cb" id="selectAllCb" onchange="toggleSelectAll(this.checked)"></th><th onclick="toggleSort(\'__name__\')">Model</th>';
+    html += '<tr><th class="sel-th"><input type="checkbox" class="sel-cb" id="selectAllCb" onchange="toggleSelectAll(this.checked)"></th><th onclick="toggleSort(\'__name__\')">Model<span class="col-resize-handle" data-col="__name__"></span></th>';
     html += '<th style="width:36px"></th>';
     for (const f of families) {
         for (const m of f.metrics) {
             const sortCls = sortCol === m ? (sortDir === 'asc' ? 'sorted-asc' : 'sorted-desc') : '';
-            // Display only metric name (strip family/ prefix if composite key)
-            const displayName = m.includes('/') ? m.split('/').slice(1).join('/') : m;
-            html += `<th class="${sortCls}" onclick="toggleSort('${esc(m)}')">${esc(displayName)}</th>`;
+            const displayName = activeFamily ? m : (m.includes('/') ? m.split('/').slice(1).join('/') : m);
+            const collapsed = collapsedCols.has(m);
+            const w = colWidths[m] ? `width:${colWidths[m]}px;` : '';
+            const colCls = collapsed ? 'col-collapsed' : sortCls;
+            html += `<th class="${colCls}" style="${w}" data-col="${esc(m)}" onclick="handleColHeaderClick(event,'${esc(m)}')">${collapsed ? '' : esc(displayName)}<span class="col-resize-handle" data-col="${esc(m)}"></span></th>`;
         }
     }
     html += '</tr></thead><tbody>';
 
     for (const r of rows) {
         const isSelected = selectedModels.has(r.name);
-        html += `<tr class="${isSelected ? 'row-selected' : ''}"`;
-        html += ` data-model-name="${esc(r.name)}">`;
+        const evenBg = striped ? 'rgba(55,65,81,0.15)' : 'transparent';
+        html += `<tr class="${isSelected ? 'row-selected' : ''}" data-model-name="${esc(r.name)}">`;
         html += `<td class="sel-td"><input type="checkbox" class="sel-cb" ${isSelected ? 'checked' : ''} onchange="toggleModelSelection('${esc(r.name)}', this.checked)"></td>`;
         const badge = r.type === 'model'
             ? '<span class="badge badge-model">M</span>'
             : '<span class="badge badge-ckpt">C</span>';
-        const runTag = r.run ? `<span class="run-tag">${esc(r.run)}</span>` : '';
-        html += `<td><div class="model-name" ${r.notes ? `title="${esc(r.notes)}"` : ''}>${badge} ${esc(r.name)} ${runTag}${r.notes ? ' <span style="color:#6b7280;font-size:10px;">📝</span>' : ''}</div></td>`;
+        const runTag = (showRunTag && r.run) ? `<span class="run-tag">${esc(r.run)}</span>` : '';
+        const displayName = getCompactNames() && r.name.length > 28 ? r.name.slice(0,25) + '…' : r.name;
+        const stickyStyle = freeze ? '' : 'position:static;background:transparent;';
+        html += `<td style="${stickyStyle}padding:${rowPad};"><div class="model-name" ${r.notes ? `title="${esc(r.notes)}"` : ''}>${badge} ${esc(displayName)} ${runTag}${r.notes ? ' <span style="color:#6b7280;font-size:10px;">📝</span>' : ''}</div></td>`;
         if (r.type === 'model') {
-            html += `<td><button class="btn-delete" title="Delete model" onclick="event.stopPropagation(); deleteModel('${esc(r.name)}')">🗑️</button></td>`;
+            html += `<td><button class="btn-delete" title="Delete model" onclick="event.stopPropagation(); deleteModel('${esc(r.name)}')">🗑</button></td>`;
         } else {
             html += '<td></td>';
         }
@@ -2039,13 +2568,17 @@ function renderTable() {
         for (const f of families) {
             for (const m of f.metrics) {
                 const v = r.metrics[m];
+                const collapsed = collapsedCols.has(m);
+                const colCls = collapsed ? 'col-collapsed' : '';
                 if (v == null) {
-                    html += '<td class="cell-na">—</td>';
+                    html += `<td class="cell-na ${colCls}">—</td>`;
                 } else {
-                    let cls = '';
-                    if (highlight && best[m] === v) cls = 'cell-best';
-                    else if (colorize && ranges[m]) cls = colorClass(v, ranges[m]);
-                    html += `<td class="${cls}" data-metric="${esc(m)}" data-value="${v}" data-model="${esc(r.name)}">${formatVal(v)}</td>`;
+                    let cls = colCls;
+                    if (!collapsed) {
+                        if (highlight && best[m] === v) cls = 'cell-best';
+                        else if (colorize && ranges[m]) cls = colorClass(v, ranges[m]);
+                    }
+                    html += `<td class="${cls}" data-metric="${esc(m)}" data-value="${v}" data-model="${esc(r.name)}">${collapsed ? '' : formatVal(v)}</td>`;
                 }
             }
         }
@@ -2053,6 +2586,15 @@ function renderTable() {
     }
     html += '</tbody></table></div>';
     container.innerHTML = html;
+
+    const wrapper = container.querySelector('.table-wrapper');
+    function updateScrollFade() {
+        const atEnd = wrapper.scrollLeft + wrapper.clientWidth >= wrapper.scrollWidth - 2;
+        wrapper.classList.toggle('can-scroll-right', !atEnd);
+    }
+    wrapper.addEventListener('scroll', updateScrollFade, { passive: true });
+    updateScrollFade();
+    initColResize(container);
 
     container.querySelectorAll('td[data-metric]').forEach(td => {
         td.addEventListener('mouseenter', showTooltip);
@@ -2106,6 +2648,14 @@ function toggleSort(col) {
    COLOR HELPERS
    ====================================================================== */
 function colorClass(value, range) {
+    const scale = getColorScale();
+    if (scale === 'off') return '';
+    if (scale === 'absolute') {
+        const pct = value > 1 ? value / 100 : value;
+        if (pct >= 0.75) return 'cell-good';
+        if (pct >= 0.4)  return 'cell-mid';
+        return 'cell-low';
+    }
     if (range.max === range.min) return '';
     const pct = (value - range.min) / (range.max - range.min);
     if (pct >= 0.75) return 'cell-good';
@@ -2115,9 +2665,10 @@ function colorClass(value, range) {
 
 function formatVal(v) {
     if (v == null) return '—';
-    if (v > 0 && v <= 1) return (v * 100).toFixed(2) + '%';
+    const dp = getDecimalPlaces();
+    if (v > 0 && v <= 1 && getShowAsPercent()) return (v * 100).toFixed(dp) + '%';
     if (Number.isInteger(v)) return v.toString();
-    return v.toFixed(2);
+    return v.toFixed(dp);
 }
 
 function esc(s) {
@@ -2771,17 +3322,33 @@ function toggleAutoRefresh(sec = 30) {
 function initFilters() {
     if (!DATA) return;
 
-    // Build all metric keys from DATA.metrics
+    // Build all metric keys from DATA.metrics (natural sort for numeric prefixes)
     const keySet = new Set();
     for (const m of DATA.metrics) keySet.add(`${m.family}/${m.metric_name}`);
-    allMetricKeys = [...keySet].sort();
+    allMetricKeys = [...keySet].sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
 
     visibleFamilies.clear();
     DATA.families.forEach(f => visibleFamilies.add(f));
 
+    // Restore summary set or show all
+    const saved = loadSummarySet();
+    const summaryToggle = document.getElementById('summaryMode');
+    if (saved && saved.length > 0) {
+        // Validate saved keys against current data
+        const valid = saved.filter(k => allMetricKeys.includes(k));
+        if (valid.length > 0) {
+            summaryToggle.checked = true;
+            columnOrder = valid;
+        } else {
+            summaryToggle.checked = false;
+            columnOrder = [...allMetricKeys];
+        }
+    } else {
+        summaryToggle.checked = false;
+        columnOrder = [...allMetricKeys];
+    }
     visibleMetrics.clear();
-    allMetricKeys.forEach(k => visibleMetrics.add(k));
-    columnOrder = [...allMetricKeys];
+    columnOrder.forEach(k => visibleMetrics.add(k));
     renderMetricChips();
 
     visibleModels.clear();
@@ -2797,6 +3364,48 @@ function metricDisplayName(key) {
 function metricFamily(key) {
     const i = key.indexOf('/');
     return i >= 0 ? key.substring(0, i) : '';
+}
+
+/* ── Summary-mode metric filtering ────────────── */
+const SUMMARY_LS_KEY = 'lightml_summary_metrics';
+
+function loadSummarySet() {
+    try {
+        const raw = localStorage.getItem(SUMMARY_LS_KEY);
+        return raw ? JSON.parse(raw) : null;
+    } catch { return null; }
+}
+
+function saveSummaryMetrics() {
+    if (columnOrder.length === 0) { alert('Select at least one metric first.'); return; }
+    if (columnOrder.length === allMetricKeys.length) {
+        alert('Customize metrics first (remove the ones you don\u2019t need), then save.');
+        return;
+    }
+    localStorage.setItem(SUMMARY_LS_KEY, JSON.stringify(columnOrder));
+    // Auto-enable summary toggle
+    document.getElementById('summaryMode').checked = true;
+    renderTable();
+}
+
+function applySummaryFilter() {
+    const on = document.getElementById('summaryMode').checked;
+    if (on) {
+        const saved = loadSummarySet();
+        if (!saved || saved.length === 0) {
+            alert('No summary set saved yet. Customize the metric chips, then click \ud83d\udcbe next to Metrics to save.');
+            document.getElementById('summaryMode').checked = false;
+            return;
+        }
+        // Keep only saved keys that still exist in the data
+        columnOrder = saved.filter(k => allMetricKeys.includes(k));
+    } else {
+        columnOrder = [...allMetricKeys];
+    }
+    visibleMetrics.clear();
+    columnOrder.forEach(k => visibleMetrics.add(k));
+    renderMetricChips();
+    renderTable();
 }
 
 function renderMetricChips() {

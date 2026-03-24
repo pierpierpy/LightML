@@ -7,6 +7,7 @@ Moved from lightml/gui.py into the unified server package.
 from __future__ import annotations
 
 import json
+import re
 import sqlite3
 import tempfile
 from pathlib import Path
@@ -18,6 +19,12 @@ from pydantic import BaseModel
 
 from lightml.export import export_excel
 from lightml.compare import compare_models
+
+
+def _natural_sort_key(s: str):
+    """Sort key that treats embedded numbers numerically."""
+    return [int(tok) if tok.isdigit() else tok.lower()
+            for tok in re.split(r'(\d+)', s)]
 
 router = APIRouter(tags=["dashboard"])
 
@@ -103,17 +110,17 @@ async def get_table(request: Request, family: str | None = None, run_id: int | N
     """Return pivoted table data for a given family, optionally filtered by run."""
     db = _db(request)
 
-    # Get distinct metric names for family
+    # Get distinct metric names for family (natural sort for numeric prefixes)
     if family:
-        metric_names = [
-            r["metric_name"]
-            for r in _query(db, "SELECT DISTINCT metric_name FROM metrics WHERE family = ? ORDER BY metric_name", (family,))
-        ]
+        metric_names = sorted(
+            [r["metric_name"] for r in _query(db, "SELECT DISTINCT metric_name FROM metrics WHERE family = ?", (family,))],
+            key=_natural_sort_key,
+        )
     else:
-        metric_names = [
-            r["metric_name"]
-            for r in _query(db, "SELECT DISTINCT metric_name FROM metrics ORDER BY metric_name")
-        ]
+        metric_names = sorted(
+            [r["metric_name"] for r in _query(db, "SELECT DISTINCT metric_name FROM metrics")],
+            key=_natural_sort_key,
+        )
 
     # Build rows: models
     if run_id:

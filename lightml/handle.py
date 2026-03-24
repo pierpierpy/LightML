@@ -14,20 +14,17 @@ from lightml.stats import compare_models_stats
 
 class LightMLHandle:
 
+    DEFAULT_RUN = "run_0"
+
     def __init__(self, db: str, run_name: str | None = None):
         self.db = db
-        self.run_name = run_name
+        self.run_name = run_name or self.DEFAULT_RUN
 
         # auto-migrate schema for older databases
         from lightml.database import migrate_database
         migrate_database(self.db)
 
-        # crea run se non esiste
-        if self.run_name is not None:
-            create_run(
-                db=self.db,
-                run_name=self.run_name
-            )
+        create_run(db=self.db, run_name=self.run_name)
 
     # ------------------------
     # MODEL

@@ -149,8 +149,8 @@ _ADAPTERS = {
 
 def scan_and_import(
     db: str,
-    run_name: str,
-    path: str,
+    run_name: str | None = None,
+    path: str = "",
     *,
     format: str = "lm_eval",
     model_prefix: str = "",

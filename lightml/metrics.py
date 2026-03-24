@@ -49,7 +49,7 @@ def add_metric(
             if model_name is not None:
 
                 if run_name is None:
-                    raise ValueError("run_name is required when logging model metric")
+                    run_name = "run_0"
 
                 row = conn.execute(
                     """
