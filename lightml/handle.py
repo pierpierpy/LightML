@@ -14,7 +14,7 @@ from lightml.stats import compare_models_stats
 
 class LightMLHandle:
 
-    DEFAULT_RUN = "run_0"
+    DEFAULT_RUN = "benchmarks"
 
     def __init__(self, db: str, run_name: str | None = None):
         self.db = db
