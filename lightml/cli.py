@@ -506,7 +506,7 @@ def cmd_exists(args):
 def cmd_gui(args):
     db = resolve_db(args.db)
     from server.main import launch
-    launch(db_path=db, host=args.host, port=args.port)
+    launch(db_path=db, host=args.host, port=args.port, share=args.share)
 
 
 # =====================================================
@@ -968,6 +968,7 @@ def main():
     p_gui.add_argument("--db", default=None)
     p_gui.add_argument("--port", type=int, default=5050)
     p_gui.add_argument("--host", default="0.0.0.0")
+    p_gui.add_argument("--share", action="store_true", help="Expose via Cloudflare Tunnel")
     p_gui.set_defaults(func=cmd_gui)
 
     # ── exists ──

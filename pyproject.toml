@@ -1,6 +1,10 @@
 [project]
 name = "light-ml-registry"
+<<<<<<< HEAD
 version = "1.4.1"
+=======
+version = "1.4.2"
+>>>>>>> 1f07ab2 (small change to cli managment)
 description = "Lightweight model registry with experiment, metrics and checkpoint tracking"
 authors = [{ name = "Pier" }]
 readme = "README.md"
