@@ -1,7 +1,7 @@
 [project]
 name = "light-ml-registry"
 <<<<<<< HEAD
-version = "1.4.1"
+version = "1.4.2"
 =======
 version = "1.4.2"
 >>>>>>> 1f07ab2 (small change to cli managment)
